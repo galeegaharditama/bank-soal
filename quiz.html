@@ -19,7 +19,12 @@
       <div class="card">
         <label>Mata pelajaran <select id="filter-subject"></select></label>
         <label>Kelas <select id="filter-grade"></select></label>
-        <label>Bab <select id="filter-chapter"></select></label>
+
+        <div class="chapters">
+          <span class="field-label">Bab</span>
+          <div id="filter-chapters" class="chapter-list" role="group" aria-label="Bab"></div>
+          <p id="chapter-hint" class="hint">Tanpa pilihan = semua bab. Boleh pilih lebih dari satu.</p>
+        </div>
 
         <div class="amount">
           <label for="amount">Jumlah soal</label>

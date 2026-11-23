@@ -52,10 +52,10 @@ Add, edit and delete questions, upload an image, filter by mapel and kelas. The 
 
 ## Quiz (`quiz.html`)
 
-1. Pick mapel, kelas, bab and how many questions: type a number, or tap 5/10/20.
-   Asking for more than the bank holds is fine — everything available is used, and the line under the
-   button says how many (`12 soal tersedia (8 pilihan ganda, 4 isian) — 12 akan dipakai`).
-   Empty filter → message instead of an empty screen.
+1. Pick mapel, kelas and one or more bab (tap the chapter chips), then how many questions: type a
+   number, or tap 5/10/20. Asking for more than the bank holds is fine — everything available is used,
+   and the line under the button says how many (`12 soal tersedia (8 pilihan ganda, 4 isian) — 12 akan
+   dipakai`). Empty filter → message instead of an empty screen.
 2. Multiple choice comes first, then written answers. 75% of the count (rounded) is taken from `pg`,
    the rest from `isian`; when one type runs out the other fills the gap, so 20 questions on a balanced
    bank is 15 `pg` + 5 `isian`. The share lives in `PG_SHARE` (`src/domain/selection.js`).

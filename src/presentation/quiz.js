@@ -27,13 +27,18 @@ const shuffle = (items) => {
 const filterValues = () => ({
   subject: $('filter-subject').value,
   grade: $('filter-grade').value,
-  chapter: $('filter-chapter').value,
+  chapters: selectedChapters(),
 });
 
-const matches = (question, { subject, grade, chapter }) =>
+const selectedChapters = () =>
+  [...$('filter-chapters').children]
+    .filter((button) => button.getAttribute('aria-pressed') === 'true')
+    .map((button) => button.dataset.chapter);
+
+const matches = (question, { subject, grade, chapters = [] }) =>
   (!subject || question.subject === subject) &&
   (!grade || String(question.grade) === grade) &&
-  (!chapter || question.chapter === chapter);
+  (!chapters.length || chapters.includes(question.chapter));
 
 const matchingQuestions = () => pool.filter((question) => matches(question, filterValues()));
 
@@ -68,11 +73,31 @@ function fillChapters() {
   const filter = filterValues();
   const chapters = unique(
     pool
-      .filter((question) => matches(question, { subject: filter.subject, grade: filter.grade, chapter: '' }))
+      .filter((question) => matches(question, { subject: filter.subject, grade: filter.grade, chapters: [] }))
       .map((question) => question.chapter)
       .filter(Boolean)
   );
-  fillSelect($('filter-chapter'), chapters, 'Semua bab');
+
+  const previouslySelected = new Set(filter.chapters);
+  const container = $('filter-chapters');
+  container.replaceChildren();
+
+  for (const chapter of chapters) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'chapter';
+    button.dataset.chapter = chapter;
+    button.textContent = chapter;
+    button.setAttribute('aria-pressed', String(previouslySelected.has(chapter)));
+    button.addEventListener('click', () => {
+      const selected = button.getAttribute('aria-pressed') === 'true';
+      button.setAttribute('aria-pressed', String(!selected));
+      updateAvailability();
+    });
+    container.append(button);
+  }
+
+  $('chapter-hint').hidden = chapters.length < 2;
 }
 
 const requestedAmount = () => {
@@ -308,7 +333,7 @@ function finish() {
     at: new Date().toISOString(),
     subject: session.filter.subject,
     grade: session.filter.grade,
-    chapter: session.filter.chapter,
+    chapters: session.filter.chapters,
     score,
     total: items.length,
     wrongIds: items.filter((item) => !item.correct).map((item) => item.question.id),
@@ -493,7 +518,8 @@ function renderHistory() {
 
   for (const entry of saved) {
     const item = document.createElement('li');
-    const label = [entry.subject || 'Semua mapel', entry.grade ? `Kelas ${entry.grade}` : null, entry.chapter]
+    const chapterLabel = entry.chapters?.length ? entry.chapters.join(', ') : entry.chapter;
+    const label = [entry.subject || 'Semua mapel', entry.grade ? `Kelas ${entry.grade}` : null, chapterLabel]
       .filter(Boolean)
       .join(' · ');
     item.textContent = `${label} — ${entry.score}/${entry.total} · ${shortDate(entry.at)}`;
@@ -511,7 +537,6 @@ $('filter-grade').addEventListener('change', () => {
   fillChapters();
   updateAvailability();
 });
-$('filter-chapter').addEventListener('change', updateAvailability);
 
 $('amount').addEventListener('input', syncAmountPresets);
 $('amount-presets').addEventListener('click', (event) => {
