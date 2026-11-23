@@ -70,6 +70,11 @@ Never put the secret key (`sb_secret_…`) in this folder — it bypasses RLS.
 
 ## Free plan limits to know
 
+- **Turn off new user sign-ups**: Authentication → Sign In / Providers → Email → disable
+  *Allow new users to sign up* (older dashboards: Authentication → Settings). The publishable key
+  is public, so anyone could otherwise call the sign-up endpoint, become `authenticated`
+  and get write access through RLS. Editor accounts are created by you in Authentication → Users.
+
 - The project **pauses after 7 days without activity**; resume it from the dashboard (data is kept).
 - No automatic backups: export the table to CSV now and then.
 - The anon key is public, so anyone with the link can **read** questions (the quiz needs that).
