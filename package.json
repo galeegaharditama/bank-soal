@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node src/domain/Question.test.mjs",
+    "serve": "npx --yes serve . -l 5173"
+  }
+}

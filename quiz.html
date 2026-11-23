@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Question Bank · Quiz</title>
+  <link rel="stylesheet" href="src/presentation/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Quiz</h1>
+    <nav>
+      <a href="index.html">Manage</a>
+    </nav>
+  </header>
+
+  <main>
+    <section id="start-view" class="card" hidden>
+      <h2>Choose a subject</h2>
+      <div id="subject-buttons" class="buttons"></div>
+    </section>
+
+    <section id="quiz-view" hidden>
+      <div class="row between">
+        <span id="progress" class="muted"></span>
+        <span id="score" class="muted"></span>
+      </div>
+      <article class="card">
+        <p id="prompt" class="prompt"></p>
+        <img id="image" alt="" hidden />
+        <div id="answers" class="buttons"></div>
+        <div id="short-answer" class="row" hidden>
+          <input id="short-answer-input" autocomplete="off" placeholder="Your answer" />
+          <button type="button" id="check">Check</button>
+        </div>
+        <div id="feedback" class="feedback" hidden>
+          <p id="verdict"></p>
+          <p id="explanation" class="muted"></p>
+        </div>
+        <button type="button" id="next" hidden>Next</button>
+      </article>
+    </section>
+
+    <section id="result-view" class="card" hidden>
+      <h2 id="result-title"></h2>
+      <button type="button" id="restart">Start over</button>
+    </section>
+
+    <p id="status" class="status" hidden></p>
+  </main>
+
+  <script type="module" src="src/presentation/quiz.js"></script>
+</body>
+</html>
