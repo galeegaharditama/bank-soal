@@ -8,14 +8,22 @@ import { SUPABASE_URL } from '../config.js';
 
 const repository = new SupabaseQuestionRepository();
 const $ = (id) => document.getElementById(id);
+const dialog = $('editor-dialog');
 
 const TYPE_LABELS = { pg: 'Pilihan ganda', isian: 'Isian' };
 
 let allQuestions = [];
 let visibleQuestions = [];
+let selectedIds = new Set();
 let editingId = null;
 let editingImagePath = null;
+let editorMode = 'add';
+let opener = null;
+let snapshot = '';
+let toastTimer = 0;
 let pendingImport = [];
+
+/* ---------- page status & toast ---------- */
 
 function setStatus(message, tone = 'info') {
   const status = $('status');
@@ -24,7 +32,37 @@ function setStatus(message, tone = 'info') {
   status.hidden = !message;
 }
 
+function showToast(message, action = null) {
+  const toast = $('toast');
+  toast.replaceChildren();
+
+  const text = document.createElement('span');
+  text.textContent = message;
+  toast.append(text);
+
+  if (action) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'link';
+    button.textContent = action.label;
+    button.addEventListener('click', () => {
+      toast.hidden = true;
+      action.run();
+    });
+    toast.append(button);
+  }
+
+  toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.hidden = true;
+  }, action ? 6000 : 3500);
+}
+
+/* ---------- auth ---------- */
+
 function showLogin() {
+  if (dialog.open) dialog.close();
   $('login-view').hidden = false;
   $('app-view').hidden = true;
   $('sign-out').hidden = true;
@@ -36,6 +74,8 @@ async function showApp() {
   $('sign-out').hidden = false;
   await refresh();
 }
+
+/* ---------- filters & list ---------- */
 
 function fillDatalist(id, values) {
   const list = $(id);
@@ -60,102 +100,142 @@ function renderFilters() {
 function applyFilters() {
   const subject = $('subject-filter').value;
   const grade = $('grade-filter').value;
+  const query = $('search').value.trim().toLowerCase();
 
-  visibleQuestions = allQuestions.filter(
-    (question) =>
-      (!subject || question.subject === subject) && (!grade || String(question.grade) === grade)
-  );
+  visibleQuestions = allQuestions.filter((question) => {
+    if (subject && question.subject !== subject) return false;
+    if (grade && String(question.grade) !== grade) return false;
+    if (!query) return true;
+
+    return [question.prompt, question.chapter, question.subject]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .includes(query);
+  });
+
+  const visibleIds = new Set(visibleQuestions.map((question) => question.id));
+  selectedIds = new Set([...selectedIds].filter((id) => visibleIds.has(id)));
+
   renderRows();
 }
 
-function cell(text, className = null) {
-  const node = document.createElement('td');
+function cell(text, className) {
+  const node = document.createElement('div');
+  node.className = className;
   node.textContent = text;
-  if (className) node.className = className;
+  node.title = text;
   return node;
 }
 
-function badgeCell(text, tone) {
-  const node = document.createElement('td');
-  const badge = document.createElement('span');
-  badge.className = `badge ${tone}`;
-  badge.textContent = text;
-  node.append(badge);
+function ghostButton(label, onClick, variant = '') {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `ghost ${variant}`.trim();
+  button.textContent = label;
+  button.addEventListener('click', onClick);
+  return button;
+}
+
+function statusCell(question) {
+  const node = document.createElement('div');
+  node.className = 'cell-status';
+
+  const label = document.createElement('label');
+  label.className = 'switch';
+
+  const toggle = document.createElement('input');
+  toggle.type = 'checkbox';
+  toggle.checked = question.active;
+  toggle.setAttribute('aria-label', `Tayangkan soal: ${question.prompt ?? ''}`);
+  toggle.addEventListener('change', () => setQuestionActive(question, toggle));
+
+  const text = document.createElement('span');
+  text.textContent = question.active ? 'Aktif' : 'Draf';
+
+  label.append(toggle, text);
+  node.append(label);
   return node;
 }
 
-function actionsCell(question) {
-  const node = document.createElement('td');
-  node.className = 'row';
+function buildRow(question) {
+  const row = document.createElement('div');
+  row.className = selectedIds.has(question.id) ? 'question-row picked' : 'question-row';
 
-  const edit = document.createElement('button');
-  edit.type = 'button';
-  edit.className = 'secondary';
-  edit.textContent = 'Edit';
-  edit.addEventListener('click', () => fillEditor(question));
+  const check = document.createElement('div');
+  check.className = 'cell-check';
+  const box = document.createElement('input');
+  box.type = 'checkbox';
+  box.checked = selectedIds.has(question.id);
+  box.setAttribute('aria-label', `Pilih soal: ${question.prompt ?? ''}`);
+  box.addEventListener('change', () => {
+    if (box.checked) selectedIds.add(question.id);
+    else selectedIds.delete(question.id);
+    row.classList.toggle('picked', box.checked);
+    syncSelectionUi();
+  });
+  check.append(box);
 
-  const remove = document.createElement('button');
-  remove.type = 'button';
-  remove.className = 'secondary';
-  remove.textContent = 'Hapus';
-  remove.addEventListener('click', () => deleteQuestion(question));
+  const actions = document.createElement('div');
+  actions.className = 'cell-actions';
 
-  node.append(edit, remove);
-  return node;
+  const editButton = ghostButton('Edit', () => openEditor(question, 'edit'));
+  editButton.setAttribute('aria-label', `Edit soal: ${question.prompt ?? ''}`);
+
+  const duplicateButton = ghostButton('Duplikat', () => openEditor(question, 'duplicate'));
+  duplicateButton.setAttribute('aria-label', `Duplikat soal: ${question.prompt ?? ''}`);
+
+  const deleteButton = ghostButton('Hapus', () => deleteQuestions([question]), 'danger');
+  deleteButton.setAttribute('aria-label', `Hapus soal: ${question.prompt ?? ''}`);
+
+  actions.append(editButton, duplicateButton, deleteButton);
+
+  row.append(
+    check,
+    cell(question.subject || '—', 'cell-mapel'),
+    cell(question.grade ? `Kelas ${question.grade}` : '—', 'cell-kelas'),
+    cell(question.chapter || '—', 'cell-bab'),
+    cell(TYPE_LABELS[question.type] ?? '—', 'cell-tipe'),
+    cell(question.prompt || '—', 'cell-soal'),
+    statusCell(question),
+    actions
+  );
+
+  row.addEventListener('click', (event) => {
+    if (event.target.closest('button, input, label, a')) return;
+    openEditor(question, 'edit');
+  });
+
+  return row;
+}
+
+function syncSelectionUi() {
+  $('select-all').checked =
+    visibleQuestions.length > 0 && visibleQuestions.every((question) => selectedIds.has(question.id));
+  $('select-all').indeterminate = !$('select-all').checked && selectedIds.size > 0;
+
+  $('bulk-bar').hidden = selectedIds.size === 0;
+  $('bulk-count').textContent = `${selectedIds.size} dipilih`;
 }
 
 function renderRows() {
-  const rows = $('question-rows');
-  rows.replaceChildren();
-  $('count').textContent = visibleQuestions.length ? `(${visibleQuestions.length})` : '';
+  const list = $('question-list');
+  list.replaceChildren();
 
-  for (const question of visibleQuestions) {
-    const row = document.createElement('tr');
-    if (question.id === editingId) row.className = 'selected';
+  for (const question of visibleQuestions) list.append(buildRow(question));
 
-    row.append(
-      cell(question.subject || '—'),
-      cell(question.grade ? `Kelas ${question.grade}` : '—'),
-      cell(question.chapter || '—'),
-      cell(TYPE_LABELS[question.type] ?? question.type),
-      cell(question.prompt || '—', 'cell-prompt'),
-      badgeCell(question.active ? 'Aktif' : 'Draf', question.active ? 'active' : 'draft'),
-      actionsCell(question)
-    );
-    rows.append(row);
-  }
-}
+  $('count').textContent =
+    visibleQuestions.length === allQuestions.length
+      ? `${allQuestions.length} soal`
+      : `${visibleQuestions.length} dari ${allQuestions.length} soal`;
 
-function syncTypeFields() {
-  const isChoice = $('type').value === 'pg';
-  $('option-fields').hidden = !isChoice;
-  $('answer').placeholder = isChoice ? 'A / B / C / D' : 'mencair|melebur';
-}
+  syncSelectionUi();
 
-function fillEditor(question = null) {
-  editingId = question?.id ?? null;
-  editingImagePath = question?.imagePath ?? null;
-
-  $('editor-title').textContent = editingId ? 'Edit soal' : 'Tambah soal';
-  $('save').textContent = editingId ? 'Simpan perubahan' : 'Tambah soal';
-  $('cancel').hidden = !editingId;
-
-  $('subject').value = question?.subject ?? '';
-  $('grade').value = question?.grade ? String(question.grade) : '';
-  $('chapter').value = question?.chapter ?? '';
-  $('type').value = question?.type ?? 'pg';
-  $('prompt').value = question?.prompt ?? '';
-  $('option-a').value = question?.optionA ?? '';
-  $('option-b').value = question?.optionB ?? '';
-  $('option-c').value = question?.optionC ?? '';
-  $('option-d').value = question?.optionD ?? '';
-  $('answer').value = question?.answer ?? '';
-  $('explanation').value = question?.explanation ?? '';
-  $('active').checked = Boolean(question?.active);
-  $('image').value = '';
-
-  syncTypeFields();
-  renderRows();
+  const empty = $('empty-state');
+  empty.hidden = visibleQuestions.length > 0;
+  empty.textContent = allQuestions.length
+    ? 'Tidak ada soal yang cocok. Hapus filter atau kata kunci.'
+    : 'Belum ada soal. Tambah soal atau impor CSV.';
 }
 
 async function refresh() {
@@ -168,18 +248,258 @@ async function refresh() {
   }
 }
 
-async function deleteQuestion(question) {
-  if (!confirm(`Hapus soal ini?\n\n${question.prompt ?? ''}`)) return;
+/* ---------- row actions ---------- */
+
+async function setQuestionActive(question, toggle) {
+  const label = toggle.parentElement.querySelector('span');
 
   try {
-    await repository.remove(question.id);
-    if (editingId === question.id) fillEditor();
-    await refresh();
-    setStatus('Soal dihapus.', 'success');
+    await repository.setActive([question.id], toggle.checked);
+    question.active = toggle.checked;
+  } catch (error) {
+    toggle.checked = question.active;
+    setStatus(error.message, 'error');
+  }
+
+  label.textContent = question.active ? 'Aktif' : 'Draf';
+}
+
+async function setManyActive(active) {
+  const ids = [...selectedIds];
+
+  try {
+    await repository.setActive(ids, active);
+    for (const question of allQuestions) {
+      if (ids.includes(question.id)) question.active = active;
+    }
+    selectedIds = new Set();
+    renderRows();
+    showToast(`${ids.length} soal ${active ? 'diaktifkan' : 'dijadikan draf'}.`);
   } catch (error) {
     setStatus(error.message, 'error');
   }
 }
+
+async function deleteQuestions(questions) {
+  const ids = questions.map((question) => question.id);
+
+  try {
+    await repository.removeMany(ids);
+
+    allQuestions = allQuestions.filter((question) => !ids.includes(question.id));
+    selectedIds = new Set([...selectedIds].filter((id) => !ids.includes(id)));
+    applyFilters();
+
+    showToast(ids.length === 1 ? 'Soal dihapus.' : `${ids.length} soal dihapus.`, {
+      label: 'Urungkan',
+      run: async () => {
+        try {
+          await repository.createMany(questions);
+          await refresh();
+          showToast('Penghapusan dibatalkan.');
+        } catch (error) {
+          setStatus(error.message, 'error');
+        }
+      },
+    });
+  } catch (error) {
+    setStatus(error.message, 'error');
+  }
+}
+
+/* ---------- editor dialog ---------- */
+
+function syncTypeFields() {
+  const isChoice = $('type').value === 'pg';
+  $('option-fields').hidden = !isChoice;
+  $('answer').placeholder = isChoice ? 'A / B / C / D' : 'mencair|melebur';
+}
+
+const formSnapshot = () =>
+  JSON.stringify([
+    $('subject').value,
+    $('grade').value,
+    $('chapter').value,
+    $('type').value,
+    $('prompt').value,
+    $('option-a').value,
+    $('option-b').value,
+    $('option-c').value,
+    $('option-d').value,
+    $('answer').value,
+    $('explanation').value,
+    $('active').checked,
+    $('image').value,
+    editingImagePath,
+  ]);
+
+function setErrors(errors) {
+  const box = $('editor-errors');
+  box.replaceChildren();
+  box.hidden = !errors.length;
+  if (!errors.length) return;
+
+  const list = document.createElement('ul');
+  for (const error of errors) {
+    const item = document.createElement('li');
+    item.textContent = error;
+    list.append(item);
+  }
+
+  box.append(list);
+  box.focus();
+}
+
+function openEditor(question = null, mode = 'add') {
+  editorMode = mode;
+  const source = mode === 'duplicate' ? { ...question, id: null, active: false } : question;
+
+  editingId = mode === 'edit' ? question.id : null;
+  editingImagePath = source?.imagePath ?? null;
+
+  $('editor-title').textContent = { add: 'Tambah soal', edit: 'Edit soal', duplicate: 'Duplikat soal' }[mode];
+  $('save').textContent = mode === 'edit' ? 'Simpan perubahan' : 'Simpan';
+  $('save-more').hidden = mode !== 'add';
+
+  $('subject').value = source?.subject ?? '';
+  $('grade').value = source?.grade ? String(source.grade) : '';
+  $('chapter').value = source?.chapter ?? '';
+  $('type').value = source?.type ?? 'pg';
+  $('prompt').value = source?.prompt ?? '';
+  $('option-a').value = source?.optionA ?? '';
+  $('option-b').value = source?.optionB ?? '';
+  $('option-c').value = source?.optionC ?? '';
+  $('option-d').value = source?.optionD ?? '';
+  $('answer').value = source?.answer ?? '';
+  $('explanation').value = source?.explanation ?? '';
+  $('active').checked = Boolean(source?.active);
+  $('image').value = '';
+
+  syncTypeFields();
+  setErrors([]);
+  snapshot = formSnapshot();
+
+  opener = document.activeElement;
+  dialog.showModal();
+  $('subject').focus();
+}
+
+function requestClose() {
+  if (formSnapshot() !== snapshot && !confirm('Perubahan belum disimpan. Tutup saja?')) return;
+  dialog.close();
+}
+
+dialog.addEventListener('close', () => {
+  if (opener?.isConnected) opener.focus();
+  opener = null;
+});
+
+dialog.addEventListener('cancel', (event) => {
+  event.preventDefault();
+  requestClose();
+});
+
+dialog.addEventListener('click', (event) => {
+  if (event.target === dialog) requestClose();
+});
+
+$('editor-close').addEventListener('click', requestClose);
+$('cancel').addEventListener('click', requestClose);
+$('type').addEventListener('change', syncTypeFields);
+$('new-question').addEventListener('click', () => openEditor());
+
+$('editor-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const alsoNew = event.submitter?.id === 'save-more';
+  const isEdit = editorMode === 'edit';
+
+  const draft = createQuestion({
+    subject: $('subject').value,
+    grade: $('grade').value,
+    chapter: $('chapter').value,
+    type: $('type').value,
+    prompt: $('prompt').value,
+    optionA: $('option-a').value,
+    optionB: $('option-b').value,
+    optionC: $('option-c').value,
+    optionD: $('option-d').value,
+    answer: $('answer').value,
+    explanation: $('explanation').value,
+    imagePath: editingImagePath,
+    active: $('active').checked,
+  });
+
+  const errors = validateQuestion(draft);
+  if (errors.length) {
+    setErrors(errors);
+    return;
+  }
+
+  const file = $('image').files[0];
+  $('save').disabled = true;
+
+  try {
+    if (file) draft.imagePath = await uploadImage(file);
+
+    if (isEdit) await repository.update(editingId, draft);
+    else await repository.create(draft);
+
+    dialog.close();
+    await refresh();
+    showToast(isEdit ? 'Soal diperbarui.' : 'Soal ditambahkan.');
+    if (alsoNew) openEditor();
+  } catch (error) {
+    setErrors([error.message]);
+  } finally {
+    $('save').disabled = false;
+  }
+});
+
+/* ---------- toolbar & bulk ---------- */
+
+$('search').addEventListener('input', applyFilters);
+$('subject-filter').addEventListener('change', applyFilters);
+$('grade-filter').addEventListener('change', applyFilters);
+
+$('select-all').addEventListener('change', (event) => {
+  selectedIds = event.target.checked ? new Set(visibleQuestions.map((question) => question.id)) : new Set();
+  renderRows();
+});
+
+$('bulk-activate').addEventListener('click', () => setManyActive(true));
+$('bulk-deactivate').addEventListener('click', () => setManyActive(false));
+$('bulk-clear').addEventListener('click', () => {
+  selectedIds = new Set();
+  renderRows();
+});
+$('bulk-delete').addEventListener('click', () => {
+  deleteQuestions(allQuestions.filter((question) => selectedIds.has(question.id)));
+});
+
+/* ---------- auth wiring ---------- */
+
+$('login-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  setStatus('Masuk…');
+
+  try {
+    await signIn($('login-email').value.trim(), $('login-password').value);
+    setStatus('');
+    await showApp();
+  } catch (error) {
+    setStatus(error.message, 'error');
+  }
+});
+
+$('sign-out').addEventListener('click', async () => {
+  await signOut();
+  allQuestions = [];
+  visibleQuestions = [];
+  selectedIds = new Set();
+  showLogin();
+});
+
+/* ---------- CSV import ---------- */
 
 function renderImportReport(questions, rejected) {
   const report = $('import-report');
@@ -211,30 +531,6 @@ function renderImportReport(questions, rejected) {
     report.append(rest);
   }
 }
-
-$('login-form').addEventListener('submit', async (event) => {
-  event.preventDefault();
-  setStatus('Masuk…');
-
-  try {
-    await signIn($('login-email').value.trim(), $('login-password').value);
-    setStatus('');
-    await showApp();
-  } catch (error) {
-    setStatus(error.message, 'error');
-  }
-});
-
-$('sign-out').addEventListener('click', async () => {
-  await signOut();
-  allQuestions = [];
-  visibleQuestions = [];
-  showLogin();
-});
-
-$('type').addEventListener('change', syncTypeFields);
-$('subject-filter').addEventListener('change', applyFilters);
-$('grade-filter').addEventListener('change', applyFilters);
 
 $('import-preview').addEventListener('click', async () => {
   const file = $('import-file').files[0];
@@ -276,55 +572,6 @@ $('import-save').addEventListener('click', async () => {
     setStatus(`${count} soal diimpor.`, 'success');
   } catch (error) {
     setStatus(`Impor gagal: ${error.message}`, 'error');
-  }
-});
-
-$('cancel').addEventListener('click', () => {
-  $('editor-form').reset();
-  fillEditor();
-});
-
-$('editor-form').addEventListener('submit', async (event) => {
-  event.preventDefault();
-
-  const draft = createQuestion({
-    subject: $('subject').value,
-    grade: $('grade').value,
-    chapter: $('chapter').value,
-    type: $('type').value,
-    prompt: $('prompt').value,
-    optionA: $('option-a').value,
-    optionB: $('option-b').value,
-    optionC: $('option-c').value,
-    optionD: $('option-d').value,
-    answer: $('answer').value,
-    explanation: $('explanation').value,
-    imagePath: editingImagePath,
-    active: $('active').checked,
-  });
-
-  const errors = validateQuestion(draft);
-  if (errors.length) {
-    setStatus(errors.join(' '), 'error');
-    return;
-  }
-
-  const file = $('image').files[0];
-  const isNew = !editingId;
-
-  try {
-    setStatus(isNew ? 'Menyimpan…' : 'Memperbarui…');
-    if (file) draft.imagePath = await uploadImage(file);
-
-    if (isNew) await repository.create(draft);
-    else await repository.update(editingId, draft);
-
-    $('editor-form').reset();
-    fillEditor();
-    await refresh();
-    setStatus(isNew ? 'Soal ditambahkan.' : 'Soal diperbarui.', 'success');
-  } catch (error) {
-    setStatus(error.message, 'error');
   }
 });
 

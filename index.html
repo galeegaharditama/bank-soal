@@ -27,9 +27,66 @@
     </section>
 
     <section id="app-view" hidden>
-      <form id="editor-form" class="card">
-        <h2 id="editor-title">Tambah soal</h2>
+      <div class="toolbar">
+        <button type="button" id="new-question" class="primary">Tambah soal</button>
+        <input id="search" type="search" placeholder="Cari soal…" aria-label="Cari soal" />
+        <select id="subject-filter" aria-label="Filter mapel"></select>
+        <select id="grade-filter" aria-label="Filter kelas"></select>
+        <span id="count" class="muted"></span>
+      </div>
 
+      <div id="bulk-bar" class="bulk-bar" hidden>
+        <span id="bulk-count"></span>
+        <button type="button" id="bulk-activate" class="secondary">Aktifkan</button>
+        <button type="button" id="bulk-deactivate" class="secondary">Nonaktifkan</button>
+        <button type="button" id="bulk-delete" class="danger">Hapus</button>
+        <button type="button" id="bulk-clear" class="link">Batal pilih</button>
+      </div>
+
+      <section class="card list-card">
+        <div class="list-head">
+          <label class="check-all"><input type="checkbox" id="select-all" aria-label="Pilih semua soal" /></label>
+          <span>Mapel</span>
+          <span>Kelas</span>
+          <span>Bab</span>
+          <span>Tipe</span>
+          <span>Soal</span>
+          <span>Status</span>
+          <span></span>
+        </div>
+        <div id="question-list"></div>
+        <p id="empty-state" class="empty-state" hidden></p>
+      </section>
+
+      <section class="card" id="import-card">
+        <h2>Impor CSV</h2>
+        <p class="muted">
+          Kolom: <code>mapel, kelas, bab, tipe, soal, gambar, opsi_a, opsi_b, opsi_c, opsi_d, jawaban,
+          pembahasan, aktif</code>. Pemisah koma atau titik koma. Baris yang melanggar aturan PRD
+          ditolak dan disebut nomornya; tidak ada yang ditulis sebelum kamu menekan Impor.
+        </p>
+        <label>File CSV <input id="import-file" type="file" accept=".csv,text/csv" /></label>
+        <div class="row">
+          <button type="button" id="import-preview" class="secondary">Periksa file</button>
+          <button type="button" id="import-save" class="primary" hidden>Impor</button>
+        </div>
+        <div id="import-report"></div>
+      </section>
+    </section>
+
+    <p id="status" class="status" role="status" aria-live="polite" hidden></p>
+  </main>
+
+  <dialog id="editor-dialog" aria-labelledby="editor-title">
+    <form id="editor-form" novalidate>
+      <header class="dialog-head">
+        <h2 id="editor-title">Tambah soal</h2>
+        <button type="button" id="editor-close" class="link">Tutup</button>
+      </header>
+
+      <div id="editor-errors" class="error-summary" role="alert" tabindex="-1" hidden></div>
+
+      <div class="dialog-body">
         <div class="grid-2">
           <label>Mapel <input id="subject" list="subject-options" /></label>
           <datalist id="subject-options"></datalist>
@@ -77,50 +134,17 @@
           <input id="active" type="checkbox" />
           Aktif — tampil di latihan siswa
         </label>
+      </div>
 
-        <div class="row">
-          <button type="submit" id="save" class="primary">Simpan</button>
-          <button type="button" id="cancel" class="secondary" hidden>Batal edit</button>
-        </div>
-      </form>
+      <footer class="dialog-foot">
+        <button type="submit" id="save" class="primary">Simpan</button>
+        <button type="submit" id="save-more" class="secondary">Simpan &amp; tambah lagi</button>
+        <button type="button" id="cancel" class="link">Batal</button>
+      </footer>
+    </form>
+  </dialog>
 
-      <section class="card" id="import-card">
-        <h2>Impor CSV</h2>
-        <p class="muted">
-          Kolom: <code>mapel, kelas, bab, tipe, soal, gambar, opsi_a, opsi_b, opsi_c, opsi_d, jawaban,
-          pembahasan, aktif</code>. Pemisah koma atau titik koma. Baris yang melanggar aturan PRD
-          ditolak dan disebut nomornya; tidak ada yang ditulis sebelum kamu menekan Impor.
-        </p>
-        <label>File CSV <input id="import-file" type="file" accept=".csv,text/csv" /></label>
-        <div class="row">
-          <button type="button" id="import-preview" class="secondary">Periksa file</button>
-          <button type="button" id="import-save" class="primary" hidden>Impor</button>
-        </div>
-        <div id="import-report"></div>
-      </section>
-
-      <section class="card">
-        <div class="row between">
-          <h2>Daftar soal <span id="count" class="muted"></span></h2>
-          <div class="row">
-            <select id="subject-filter" aria-label="Filter mapel"></select>
-            <select id="grade-filter" aria-label="Filter kelas"></select>
-          </div>
-        </div>
-
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Mapel</th><th>Kelas</th><th>Bab</th><th>Tipe</th><th>Soal</th><th>Status</th><th></th></tr>
-            </thead>
-            <tbody id="question-rows"></tbody>
-          </table>
-        </div>
-      </section>
-    </section>
-
-    <p id="status" class="status" role="status" aria-live="polite" hidden></p>
-  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
   <script type="module" src="src/presentation/manage.js"></script>
 </body>

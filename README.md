@@ -47,8 +47,16 @@ Rules from PRD 6, enforced in `src/domain/Question.js`:
 
 ## Editor (`index.html`)
 
-Add, edit and delete questions, upload an image, filter by mapel and kelas. The status column shows
-**Draf** or **Aktif**. Unchecked *Aktif* = draft, so half-written rows save without complaints.
+- **Tambah soal** at the top opens the editor in a modal dialog; clicking a row (or **Edit**) opens
+  the same dialog filled in, so the list keeps its filters and scroll position.
+- Unsaved changes ask for confirmation on Esc, backdrop click, close or **Batal**.
+- **Simpan & tambah lagi** keeps the dialog opening fresh for a typing session.
+- The toolbar stays visible while scrolling: search by question text, filter by mapel/kelas.
+- Each row has an **Aktif** switch (publish without opening the dialog), **Duplikat** (saves a copy as
+  a draft) and **Hapus** with a 5-second **Urungkan** toast.
+- Tick rows (or the header box) for bulk **Aktifkan / Nonaktifkan / Hapus**, also undoable.
+- Below 760 px the list becomes cards instead of a table.
+- Unchecked *Aktif* = draft, so half-written rows save without complaints.
 
 ## Quiz (`quiz.html`)
 

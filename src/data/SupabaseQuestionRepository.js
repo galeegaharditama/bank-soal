@@ -25,6 +25,7 @@ const toEntity = (row) =>
   });
 
 const toRow = (question) => ({
+  ...(question.id ? { id: question.id } : {}),
   subject: question.subject || null,
   grade: question.grade,
   chapter: question.chapter,
@@ -65,6 +66,20 @@ export class SupabaseQuestionRepository extends QuestionRepository {
 
   async remove(id) {
     const { error } = await supabase.from(TABLE).delete().eq('id', id);
+    if (error) throw error;
+  }
+
+  /** @param {string[]} ids */
+  async removeMany(ids) {
+    if (!ids.length) return;
+    const { error } = await supabase.from(TABLE).delete().in('id', ids);
+    if (error) throw error;
+  }
+
+  /** @param {string[]} ids @param {boolean} active */
+  async setActive(ids, active) {
+    if (!ids.length) return;
+    const { error } = await supabase.from(TABLE).update({ active }).in('id', ids);
     if (error) throw error;
   }
 

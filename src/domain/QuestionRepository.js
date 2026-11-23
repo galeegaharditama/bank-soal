@@ -23,6 +23,16 @@ export class QuestionRepository {
     throw new Error('QuestionRepository.remove is not implemented');
   }
 
+  /** @param {string[]} ids @returns {Promise<void>} */
+  async removeMany(ids) {
+    throw new Error('QuestionRepository.removeMany is not implemented');
+  }
+
+  /** @param {string[]} ids @param {boolean} active @returns {Promise<void>} */
+  async setActive(ids, active) {
+    throw new Error('QuestionRepository.setActive is not implemented');
+  }
+
   /** @param {Question[]} questions @returns {Promise<number>} */
   async createMany(questions) {
     throw new Error('QuestionRepository.createMany is not implemented');
