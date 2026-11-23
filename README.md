@@ -7,9 +7,10 @@ one free flow (skip, back, number strip), corrections only at the end, 5/10/20 q
 ## Setup (once)
 
 1. Create a project at supabase.com (free plan is enough).
-2. SQL Editor → paste all of `schema.sql` → Run.
-   Already ran the earlier version of this file? Run `drop table if exists public.questions;` first —
-   the columns changed when the app was aligned with the PRD.
+2. SQL Editor → paste all of `schema.sql` → Run. The script is safe to run again; it recreates the
+   policies and keeps the existing rows.
+   Already ran an older version with different columns? Run `drop table if exists public.questions;`
+   first, then this file again.
 3. Authentication → Users → **Add user** (email + password, confirm it). This is the editor login.
    Then Authentication → **Sign In / Providers** → Email → disable *Allow new users to sign up*.
 4. Settings → **API Keys** (the old "Settings → API" page is gone). Copy **Project URL** from the top
