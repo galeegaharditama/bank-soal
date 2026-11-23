@@ -1,0 +1,5 @@
+mapel,kelas,bab,tipe,soal,gambar,opsi_a,opsi_b,opsi_c,opsi_d,jawaban,pembahasan,aktif
+Matematika,3,Pecahan,pg,"1/2 + 1/2 = ...",,1,2,1/4,3/4,A,"Dua setengah digabung menjadi satu.",ya
+Bahasa Indonesia,3,Kata Baku,pg,"Penulisan yang baku adalah ...",,apotek,apotik,,,A,"Kata baku menurut KBBI adalah apotek.",ya
+IPA,3,Wujud Benda,isian,"Es yang dipanaskan akan ...",,,,,,mencair|melebur,"Es berubah dari padat menjadi cair, prosesnya mencair.",ya
+Matematika,3,Pecahan,pg,"3/4 + 1/4 = ...",,1,2,,,A,"Tiga perempat ditambah seperempat menjadi satu penuh.",tidak

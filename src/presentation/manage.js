@@ -1,6 +1,7 @@
 import { createQuestion, validateQuestion, GRADES } from '../domain/Question.js';
 import { SupabaseQuestionRepository } from '../data/SupabaseQuestionRepository.js';
 import { uploadImage } from '../data/imageStorage.js';
+import { rowsToQuestions } from '../data/csv.js';
 import { signIn, signOut, currentUser } from '../data/auth.js';
 import { fillSelect, unique } from './dom.js';
 import { SUPABASE_URL } from '../config.js';
@@ -14,6 +15,7 @@ let allQuestions = [];
 let visibleQuestions = [];
 let editingId = null;
 let editingImagePath = null;
+let pendingImport = [];
 
 function setStatus(message, tone = 'info') {
   const status = $('status');
@@ -179,6 +181,37 @@ async function deleteQuestion(question) {
   }
 }
 
+function renderImportReport(questions, rejected) {
+  const report = $('import-report');
+  report.replaceChildren();
+
+  const summary = document.createElement('p');
+  summary.textContent = rejected.length
+    ? `${questions.length} soal siap diimpor, ${rejected.length} baris ditolak.`
+    : `${questions.length} soal siap diimpor.`;
+  report.append(summary);
+
+  if (!rejected.length) return;
+
+  const list = document.createElement('ul');
+  list.className = 'reject-list';
+
+  for (const entry of rejected.slice(0, 50)) {
+    const item = document.createElement('li');
+    item.textContent = `Baris ${entry.line}: ${entry.errors.join(' ')}`;
+    list.append(item);
+  }
+
+  report.append(list);
+
+  if (rejected.length > 50) {
+    const rest = document.createElement('p');
+    rest.className = 'muted';
+    rest.textContent = `…dan ${rejected.length - 50} baris lain.`;
+    report.append(rest);
+  }
+}
+
 $('login-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   setStatus('Masuk…');
@@ -202,6 +235,49 @@ $('sign-out').addEventListener('click', async () => {
 $('type').addEventListener('change', syncTypeFields);
 $('subject-filter').addEventListener('change', applyFilters);
 $('grade-filter').addEventListener('change', applyFilters);
+
+$('import-preview').addEventListener('click', async () => {
+  const file = $('import-file').files[0];
+  if (!file) {
+    setStatus('Pilih file CSV dulu.', 'error');
+    return;
+  }
+
+  try {
+    const { questions, rejected } = rowsToQuestions(await file.text());
+    pendingImport = questions;
+    renderImportReport(questions, rejected);
+
+    $('import-save').hidden = questions.length === 0;
+    $('import-save').textContent = `Impor ${questions.length} soal`;
+    setStatus('');
+  } catch (error) {
+    pendingImport = [];
+    $('import-save').hidden = true;
+    $('import-report').replaceChildren();
+    setStatus(error.message, 'error');
+  }
+});
+
+$('import-save').addEventListener('click', async () => {
+  if (!pendingImport.length) return;
+
+  const count = pendingImport.length;
+
+  try {
+    setStatus('Mengimpor…');
+    await repository.createMany(pendingImport);
+
+    pendingImport = [];
+    $('import-file').value = '';
+    $('import-report').replaceChildren();
+    $('import-save').hidden = true;
+    await refresh();
+    setStatus(`${count} soal diimpor.`, 'success');
+  } catch (error) {
+    setStatus(`Impor gagal: ${error.message}`, 'error');
+  }
+});
 
 $('cancel').addEventListener('click', () => {
   $('editor-form').reset();

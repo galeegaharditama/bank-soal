@@ -4,47 +4,47 @@ import { supabase } from './supabaseClient.js';
 
 const TABLE = 'questions';
 const COLUMNS =
-  'id, subject, grade, chapter, type, prompt, image_path, option_a, option_b, option_c, option_d, answer, explanation, active';
+  'id, mapel, kelas, bab, tipe, soal, gambar, opsi_a, opsi_b, opsi_c, opsi_d, jawaban, pembahasan, aktif';
 
 const toEntity = (row) =>
   createQuestion({
     id: row.id,
-    subject: row.subject,
-    grade: row.grade,
-    chapter: row.chapter,
-    type: row.type,
-    prompt: row.prompt,
-    imagePath: row.image_path,
-    optionA: row.option_a,
-    optionB: row.option_b,
-    optionC: row.option_c,
-    optionD: row.option_d,
-    answer: row.answer,
-    explanation: row.explanation,
-    active: row.active,
+    subject: row.mapel,
+    grade: row.kelas,
+    chapter: row.bab,
+    type: row.tipe,
+    prompt: row.soal,
+    imagePath: row.gambar,
+    optionA: row.opsi_a,
+    optionB: row.opsi_b,
+    optionC: row.opsi_c,
+    optionD: row.opsi_d,
+    answer: row.jawaban,
+    explanation: row.pembahasan,
+    active: row.aktif,
   });
 
 const toRow = (question) => ({
-  subject: question.subject || null,
-  grade: question.grade,
-  chapter: question.chapter,
-  type: question.type,
-  prompt: question.prompt || null,
-  image_path: question.imagePath,
-  option_a: question.optionA,
-  option_b: question.optionB,
-  option_c: question.optionC,
-  option_d: question.optionD,
-  answer: question.answer || null,
-  explanation: question.explanation,
-  active: question.active,
+  mapel: question.subject || null,
+  kelas: question.grade,
+  bab: question.chapter,
+  tipe: question.type,
+  soal: question.prompt || null,
+  gambar: question.imagePath,
+  opsi_a: question.optionA,
+  opsi_b: question.optionB,
+  opsi_c: question.optionC,
+  opsi_d: question.optionD,
+  jawaban: question.answer || null,
+  pembahasan: question.explanation,
+  aktif: question.active,
 });
 
 export class SupabaseQuestionRepository extends QuestionRepository {
   /** @param {{ activeOnly?: boolean }} [filter] */
   async list({ activeOnly = false } = {}) {
     let query = supabase.from(TABLE).select(COLUMNS).order('created_at', { ascending: false });
-    if (activeOnly) query = query.eq('active', true);
+    if (activeOnly) query = query.eq('aktif', true);
 
     const { data, error } = await query;
     if (error) throw error;
@@ -68,12 +68,24 @@ export class SupabaseQuestionRepository extends QuestionRepository {
     if (error) throw error;
   }
 
+  /** Bulk insert for the CSV import, 100 rows per request. */
+  async createMany(questions) {
+    const rows = questions.map(toRow);
+
+    for (let index = 0; index < rows.length; index += 100) {
+      const { error } = await supabase.from(TABLE).insert(rows.slice(index, index + 100));
+      if (error) throw error;
+    }
+
+    return rows.length;
+  }
+
   /** Newest updated_at, shown in the header as "Data per ..." (PRD 6). */
   async latestUpdate() {
     const { data, error } = await supabase
       .from(TABLE)
       .select('updated_at')
-      .eq('active', true)
+      .eq('aktif', true)
       .order('updated_at', { ascending: false })
       .limit(1);
 

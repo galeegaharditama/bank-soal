@@ -22,4 +22,9 @@ export class QuestionRepository {
   async remove(id) {
     throw new Error('QuestionRepository.remove is not implemented');
   }
+
+  /** @param {Question[]} questions @returns {Promise<number>} */
+  async createMany(questions) {
+    throw new Error('QuestionRepository.createMany is not implemented');
+  }
 }

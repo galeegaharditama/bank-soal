@@ -12,5 +12,7 @@ export async function uploadImage(file) {
 
 export function publicImageUrl(path) {
   if (!path) return null;
+  // Imported rows may already hold a full URL (e.g. a sheet column with image links).
+  if (/^https?:\/\//i.test(path)) return path;
   return supabase.storage.from(IMAGE_BUCKET).getPublicUrl(path).data.publicUrl;
 }

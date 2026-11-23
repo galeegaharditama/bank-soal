@@ -18,21 +18,11 @@ one free flow (skip, back, number strip), corrections only at the end, 5/10/20 q
 5. Serve the folder: `npm run serve` → http://localhost:5173.
    ES modules do not load from `file://`, so opening the HTML by double-click will not work.
 
-## Columns (PRD ↔ database)
+## Columns
 
-| PRD | Database | Note |
-| --- | --- | --- |
-| `id` | `id` | uuid, unique |
-| `mapel` | `subject` | |
-| `kelas` | `grade` | 1–6 |
-| `bab` | `chapter` | optional |
-| `tipe` | `type` | `pg` or `isian` |
-| `soal` | `prompt` | |
-| `gambar` | `image_path` | object path in the `question-images` bucket |
-| `opsi_a`…`opsi_d` | `option_a`…`option_d` | |
-| `jawaban` | `answer` | `A`–`D` for pg, text for isian, `\|` separates alternatives |
-| `pembahasan` | `explanation` | required once the row is active |
-| `aktif` | `active` | drafts are skipped by the quiz |
+The database columns follow the PRD sheet names, so a sheet export can be imported as is:
+
+`id, mapel, kelas, bab, tipe, soal, gambar, opsi_a…opsi_d, jawaban, pembahasan, aktif`
 
 Rules from PRD 6, enforced in `src/domain/Question.js`:
 
@@ -40,6 +30,9 @@ Rules from PRD 6, enforced in `src/domain/Question.js`:
 - `pg` needs at least two options and `jawaban` must point to a filled option.
 - `pembahasan` is required.
 - A row saved with **Aktif** unchecked is a draft: it may be incomplete and never reaches the quiz.
+
+The JavaScript code keeps English names; `src/data/SupabaseQuestionRepository.js` is the single place
+that translates `mapel ↔ subject`, `kelas ↔ grade`, and so on.
 
 ## Editor (`index.html`)
 
@@ -57,16 +50,30 @@ Add, edit and delete questions, upload an image, filter by mapel and kelas. The 
 5. The last 5 sessions stay on the device (localStorage, 20 kept). The header shows
    `Data per <date>` from the newest `updated_at`.
 
-## Import the old questions
+## Import many questions (CSV)
 
-Export the sheet as CSV with headers renamed to the database columns above, then
-Table editor → `questions` → Insert → Import data from CSV.
+In the editor, **Impor CSV** → choose the file → **Periksa file**. Nothing is written until you press
+**Impor N soal**, and every rejected row is listed with its line number and the reason.
+`sample-import.csv` in this folder is a working example.
+
+- Export the sheet as CSV: **File → Download → Comma-separated values** (Excel in Indonesian locale
+  may save `;` instead of `,` — both work).
+- Headers must include `mapel` and `soal`. The rest are optional; `mapel, kelas, bab, tipe, soal,
+  gambar, opsi_a…opsi_d, jawaban, pembahasan, aktif` is the full set. Common aliases
+  (`Mata Pelajaran`, `Type`, `Answer`, …) are accepted.
+- `tipe` accepts `pg` / `pilihan ganda` / `isian`. Unknown values reject the row.
+- `aktif` accepts `ya`/`tidak` (`true`/`1` too). Missing column or blank cell means published.
+- `gambar` may be an image URL from the sheet, or left empty.
+- Rows are validated with the same PRD rules, so invalid rows never enter the database.
+
+Re-importing the same file creates duplicates — there is no de-duplication by `id` yet, so delete the
+previous batch in the editor first if you need to redo an import.
 
 ## Structure
 
 ```
 src/domain     entities and rules (no I/O, no DOM)
-src/data       Supabase repository, auth, image storage, local session history
+src/data       Supabase repository, CSV import, auth, image storage, local session history
 src/presentation  pages, DOM helpers, styles
 ```
 
