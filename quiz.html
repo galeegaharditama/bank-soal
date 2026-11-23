@@ -1,52 +1,69 @@
 <!doctype html>
-<html lang="en">
+<html lang="id">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Question Bank · Quiz</title>
+  <title>Bank Soal · Latihan</title>
   <link rel="stylesheet" href="src/presentation/style.css" />
 </head>
 <body>
   <header class="topbar">
-    <h1>Quiz</h1>
-    <nav>
-      <a href="index.html">Manage</a>
-    </nav>
+    <h1>Bank Soal</h1>
+    <div class="topbar-meta">
+      <span id="data-version" class="muted"></span>
+    </div>
   </header>
 
   <main>
-    <section id="start-view" class="card" hidden>
-      <h2>Choose a subject</h2>
-      <div id="subject-buttons" class="buttons"></div>
-    </section>
+    <section id="start-view" hidden>
+      <div class="card">
+        <label>Mata pelajaran <select id="filter-subject"></select></label>
+        <label>Kelas <select id="filter-grade"></select></label>
+        <label>Bab <select id="filter-chapter"></select></label>
 
-    <section id="quiz-view" hidden>
-      <div class="row between">
-        <span id="progress" class="muted"></span>
-        <span id="score" class="muted"></span>
+        <fieldset class="amount">
+          <legend>Jumlah soal</legend>
+          <div class="segmented" id="amount-buttons">
+            <button type="button" data-amount="5" aria-pressed="false">5 soal</button>
+            <button type="button" data-amount="10" aria-pressed="true">10 soal</button>
+            <button type="button" data-amount="20" aria-pressed="false">20 soal</button>
+          </div>
+        </fieldset>
+
+        <button id="start" class="primary big block" type="button">Mulai</button>
+        <p id="availability" class="muted"></p>
       </div>
-      <article class="card">
-        <p id="prompt" class="prompt"></p>
-        <img id="image" alt="" hidden />
-        <div id="answers" class="buttons"></div>
-        <div id="short-answer" class="row" hidden>
-          <input id="short-answer-input" autocomplete="off" placeholder="Your answer" />
-          <button type="button" id="check">Check</button>
-        </div>
-        <div id="feedback" class="feedback" hidden>
-          <p id="verdict"></p>
-          <p id="explanation" class="muted"></p>
-        </div>
-        <button type="button" id="next" hidden>Next</button>
-      </article>
+
+      <div class="card" id="history-section" hidden>
+        <h2>Latihan terakhir</h2>
+        <ul id="history-list" class="history"></ul>
+      </div>
     </section>
 
-    <section id="result-view" class="card" hidden>
-      <h2 id="result-title"></h2>
-      <button type="button" id="restart">Start over</button>
+    <section id="session-view" hidden>
+      <div class="row between">
+        <span id="session-progress" class="muted"></span>
+        <button id="exit" class="link" type="button">Keluar</button>
+      </div>
+
+      <div class="progress" aria-hidden="true"><div id="progress-fill"></div></div>
+      <div id="number-strip" class="number-strip" role="group" aria-label="Nomor soal"></div>
+
+      <article class="card" id="question-card"></article>
+
+      <div class="row nav">
+        <button id="prev" class="secondary big" type="button">‹ Kembali</button>
+        <button id="next" class="secondary big" type="button">Lanjut ›</button>
+      </div>
+
+      <button id="finish" class="primary big block" type="button">Selesai</button>
     </section>
 
-    <p id="status" class="status" hidden></p>
+    <section id="result-view" hidden>
+      <div class="card" id="result-card"></div>
+    </section>
+
+    <p id="status" class="status" role="status" aria-live="polite" hidden></p>
   </main>
 
   <script type="module" src="src/presentation/quiz.js"></script>

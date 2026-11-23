@@ -1,40 +1,73 @@
 # Question Bank
 
-Manage exam questions without editing Google Sheets. Two pages:
-
-- `index.html` — editor: add, edit, delete, filter by subject, upload an image.
-- `quiz.html` — for the kid: pick a subject, answer random questions, see the score.
+A question bank for practice: `index.html` is the editor, `quiz.html` is for the student.
+Questions live in Supabase instead of Google Sheets, and the app follows PRD *Bank Soal SD* v1:
+one free flow (skip, back, number strip), corrections only at the end, 5/10/20 questions.
 
 ## Setup (once)
 
 1. Create a project at supabase.com (free plan is enough).
 2. SQL Editor → paste all of `schema.sql` → Run.
+   Already ran the earlier version of this file? Run `drop table if exists public.questions;` first —
+   the columns changed when the app was aligned with the PRD.
 3. Authentication → Users → **Add user** (email + password, confirm it). This is the editor login.
+   Then Authentication → **Sign In / Providers** → Email → disable *Allow new users to sign up*.
 4. Settings → **API Keys** (the old "Settings → API" page is gone). Copy **Project URL** from the top
    of that page and the **publishable key** (`sb_publishable_…`) into `src/config.js`.
    The secret key (`sb_secret_…`) never goes in this file — it bypasses row level security.
 5. Serve the folder: `npm run serve` → http://localhost:5173.
    ES modules do not load from `file://`, so opening the HTML by double-click will not work.
 
-## Day to day
+## Columns (PRD ↔ database)
 
-- `index.html` — the editor. Multiple choice needs at least A and B, and the answer is the letter
-  `A`–`D`. Short answer accepts free text, and `3 | tiga` accepts either spelling.
-- `quiz.html` — 10 random questions. Queue size with `?limit=20`, a subject with `?subject=Math`.
-- Images are uploaded to the public `question-images` bucket; the quiz shows them at full width.
+| PRD | Database | Note |
+| --- | --- | --- |
+| `id` | `id` | uuid, unique |
+| `mapel` | `subject` | |
+| `kelas` | `grade` | 1–6 |
+| `bab` | `chapter` | optional |
+| `tipe` | `type` | `pg` or `isian` |
+| `soal` | `prompt` | |
+| `gambar` | `image_path` | object path in the `question-images` bucket |
+| `opsi_a`…`opsi_d` | `option_a`…`option_d` | |
+| `jawaban` | `answer` | `A`–`D` for pg, text for isian, `\|` separates alternatives |
+| `pembahasan` | `explanation` | required once the row is active |
+| `aktif` | `active` | drafts are skipped by the quiz |
 
-## Import the old sheet
+Rules from PRD 6, enforced in `src/domain/Question.js`:
 
-Export the sheet as CSV, rename the headers to the column names in `schema.sql`
-(`subject, topic, type, prompt, option_a … answer, explanation`), then
+- `kelas` is 1–6, `tipe` is `pg` or `isian`.
+- `pg` needs at least two options and `jawaban` must point to a filled option.
+- `pembahasan` is required.
+- A row saved with **Aktif** unchecked is a draft: it may be incomplete and never reaches the quiz.
+
+## Editor (`index.html`)
+
+Add, edit and delete questions, upload an image, filter by mapel and kelas. The status column shows
+**Draf** or **Aktif**. Unchecked *Aktif* = draft, so half-written rows save without complaints.
+
+## Quiz (`quiz.html`)
+
+1. Pick mapel, kelas, bab and 5/10/20 questions. Empty filter → message instead of an empty screen.
+2. One question per card. **Lanjut** without answering skips it, **Kembali** returns, the number strip
+   jumps anywhere, and answers can change until **Selesai**. No right/wrong mark or explanation yet.
+3. **Selesai** with open questions asks for confirmation and names the count.
+4. Result: score, then the full review (your answer, key, explanation) plus
+   **Ulangi semua**, **Ulangi yang salah**, **Ganti pilihan**.
+5. The last 5 sessions stay on the device (localStorage, 20 kept). The header shows
+   `Data per <date>` from the newest `updated_at`.
+
+## Import the old questions
+
+Export the sheet as CSV with headers renamed to the database columns above, then
 Table editor → `questions` → Insert → Import data from CSV.
 
 ## Structure
 
 ```
 src/domain     entities and rules (no I/O, no DOM)
-src/data       Supabase: repository, auth, image storage
-src/presentation  pages and styles
+src/data       Supabase repository, auth, image storage, local session history
+src/presentation  pages, DOM helpers, styles
 ```
 
 Three layers, no build step, no framework, no dependency to install.
@@ -66,16 +99,17 @@ the repository holds code only — the questions stay in Supabase.
 meant to be public; the guard is the row level security in `schema.sql` (anyone may read,
 only a signed-in editor may write). Wrapping it in an env variable would not hide it either:
 a static site has no server, and a build step would only inline the value into the same JS.
-Never put the secret key (`sb_secret_…`) in this folder — it bypasses RLS.
+
+## Not in this version
+
+Offline use (service worker), the report-a-question button, and any server-side scoring are PRD
+v1.1/v2 items and are not implemented here.
 
 ## Free plan limits to know
 
-- **Turn off new user sign-ups**: Authentication → Sign In / Providers → Email → disable
-  *Allow new users to sign up* (older dashboards: Authentication → Settings). The publishable key
-  is public, so anyone could otherwise call the sign-up endpoint, become `authenticated`
-  and get write access through RLS. Editor accounts are created by you in Authentication → Users.
-
-- The project **pauses after 7 days without activity**; resume it from the dashboard (data is kept).
+- **Turn off new user sign-ups** (step 3): the publishable key is public, so anyone could
+  otherwise create an account, become `authenticated` and write through RLS.
+- **Pauses after 7 days without activity**; resume it from the dashboard (data is kept).
 - No automatic backups: export the table to CSV now and then.
-- The anon key is public, so anyone with the link can **read** questions (the quiz needs that).
-  Writing requires a logged-in user, enforced by the row level security policies.
+- Anyone with the quiz link can read the questions, including the `answer` column (PRD 4.2 accepts
+  this for self-practice).

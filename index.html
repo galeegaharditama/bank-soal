@@ -1,78 +1,102 @@
 <!doctype html>
-<html lang="en">
+<html lang="id">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Question Bank · Manage</title>
+  <title>Bank Soal · Kelola</title>
   <link rel="stylesheet" href="src/presentation/style.css" />
 </head>
 <body>
   <header class="topbar">
-    <h1>Question Bank</h1>
-    <nav>
-      <a href="quiz.html">Open quiz</a>
-      <button id="sign-out" class="link" hidden type="button">Sign out</button>
-    </nav>
+    <h1>Kelola Bank Soal</h1>
+    <div class="topbar-meta">
+      <a href="quiz.html">Buka latihan</a>
+      <button id="sign-out" class="link" type="button" hidden>Keluar</button>
+    </div>
   </header>
 
   <main>
     <section id="login-view" hidden>
       <form id="login-form" class="card narrow">
-        <h2>Sign in</h2>
-        <p class="muted">Use the editor account created in Supabase → Authentication.</p>
+        <h2>Masuk</h2>
+        <p class="muted">Pakai akun editor yang dibuat di Supabase → Authentication → Users.</p>
         <label>Email <input id="login-email" type="email" autocomplete="username" required /></label>
         <label>Password <input id="login-password" type="password" autocomplete="current-password" required /></label>
-        <button type="submit">Sign in</button>
+        <button type="submit" class="primary">Masuk</button>
       </form>
     </section>
 
     <section id="app-view" hidden>
       <form id="editor-form" class="card">
-        <h2 id="editor-title">Add question</h2>
+        <h2 id="editor-title">Tambah soal</h2>
 
         <div class="grid-2">
-          <label>Subject <input id="subject" list="subject-options" required /></label>
+          <label>Mapel <input id="subject" list="subject-options" /></label>
           <datalist id="subject-options"></datalist>
-          <label>Topic <input id="topic" placeholder="e.g. fractions" /></label>
-          <label>Type
+
+          <label>Kelas
+            <select id="grade">
+              <option value="">—</option>
+              <option value="1">Kelas 1</option>
+              <option value="2">Kelas 2</option>
+              <option value="3">Kelas 3</option>
+              <option value="4">Kelas 4</option>
+              <option value="5">Kelas 5</option>
+              <option value="6">Kelas 6</option>
+            </select>
+          </label>
+
+          <label>Bab <input id="chapter" list="chapter-options" /></label>
+          <datalist id="chapter-options"></datalist>
+
+          <label>Tipe
             <select id="type">
-              <option value="multiple_choice">Multiple choice</option>
-              <option value="short_answer">Short answer</option>
+              <option value="pg">Pilihan ganda</option>
+              <option value="isian">Isian</option>
             </select>
           </label>
         </div>
 
-        <label>Question <textarea id="prompt" rows="3" required></textarea></label>
+        <label>Soal <textarea id="prompt" rows="3"></textarea></label>
 
         <div id="option-fields" class="grid-2">
-          <label>Option A <input id="option-a" /></label>
-          <label>Option B <input id="option-b" /></label>
-          <label>Option C <input id="option-c" /></label>
-          <label>Option D <input id="option-d" /></label>
+          <label>Opsi A <input id="option-a" /></label>
+          <label>Opsi B <input id="option-b" /></label>
+          <label>Opsi C <input id="option-c" /></label>
+          <label>Opsi D <input id="option-d" /></label>
         </div>
 
         <div class="grid-2">
-          <label>Answer <input id="answer" placeholder="A / B / C / D" required /></label>
-          <label>Image <input id="image" type="file" accept="image/*" /></label>
+          <label>Jawaban <input id="answer" /></label>
+          <label>Gambar <input id="image" type="file" accept="image/*" /></label>
         </div>
 
-        <label>Explanation <textarea id="explanation" rows="2"></textarea></label>
+        <label>Pembahasan <textarea id="explanation" rows="3"></textarea></label>
+
+        <label class="check">
+          <input id="active" type="checkbox" />
+          Aktif — tampil di latihan siswa
+        </label>
 
         <div class="row">
-          <button type="submit" id="save">Add question</button>
-          <button type="button" id="cancel" class="secondary" hidden>Cancel edit</button>
+          <button type="submit" id="save" class="primary">Simpan</button>
+          <button type="button" id="cancel" class="secondary" hidden>Batal edit</button>
         </div>
       </form>
 
       <section class="card">
         <div class="row between">
-          <h2>Questions <span id="count" class="muted"></span></h2>
-          <select id="subject-filter"><option value="">All subjects</option></select>
+          <h2>Daftar soal <span id="count" class="muted"></span></h2>
+          <div class="row">
+            <select id="subject-filter" aria-label="Filter mapel"></select>
+            <select id="grade-filter" aria-label="Filter kelas"></select>
+          </div>
         </div>
+
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th>Subject</th><th>Topic</th><th>Question</th><th>Type</th><th></th></tr>
+              <tr><th>Mapel</th><th>Kelas</th><th>Bab</th><th>Tipe</th><th>Soal</th><th>Status</th><th></th></tr>
             </thead>
             <tbody id="question-rows"></tbody>
           </table>
@@ -80,7 +104,7 @@
       </section>
     </section>
 
-    <p id="status" class="status" hidden></p>
+    <p id="status" class="status" role="status" aria-live="polite" hidden></p>
   </main>
 
   <script type="module" src="src/presentation/manage.js"></script>

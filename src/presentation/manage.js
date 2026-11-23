@@ -1,21 +1,25 @@
-import { createQuestion, validateQuestion } from '../domain/Question.js';
+import { createQuestion, validateQuestion, GRADES } from '../domain/Question.js';
 import { SupabaseQuestionRepository } from '../data/SupabaseQuestionRepository.js';
 import { uploadImage } from '../data/imageStorage.js';
 import { signIn, signOut, currentUser } from '../data/auth.js';
+import { fillSelect, unique } from './dom.js';
 import { SUPABASE_URL } from '../config.js';
 
 const repository = new SupabaseQuestionRepository();
 const $ = (id) => document.getElementById(id);
 
+const TYPE_LABELS = { pg: 'Pilihan ganda', isian: 'Isian' };
+
 let allQuestions = [];
-let questions = [];
+let visibleQuestions = [];
 let editingId = null;
 let editingImagePath = null;
 
 function setStatus(message, tone = 'info') {
-  $('status').textContent = message;
-  $('status').dataset.tone = tone;
-  $('status').hidden = !message;
+  const status = $('status');
+  status.textContent = message;
+  status.dataset.tone = tone;
+  status.hidden = !message;
 }
 
 function showLogin() {
@@ -31,23 +35,113 @@ async function showApp() {
   await refresh();
 }
 
+function fillDatalist(id, values) {
+  const list = $(id);
+  list.replaceChildren();
+
+  for (const value of values) {
+    const option = document.createElement('option');
+    option.value = value;
+    list.append(option);
+  }
+}
+
+function renderFilters() {
+  const subjects = unique(allQuestions.map((question) => question.subject).filter(Boolean));
+  fillDatalist('subject-options', subjects);
+  fillDatalist('chapter-options', unique(allQuestions.map((question) => question.chapter).filter(Boolean)));
+
+  fillSelect($('subject-filter'), subjects, 'Semua mapel');
+  fillSelect($('grade-filter'), GRADES, 'Semua kelas', (grade) => `Kelas ${grade}`);
+}
+
+function applyFilters() {
+  const subject = $('subject-filter').value;
+  const grade = $('grade-filter').value;
+
+  visibleQuestions = allQuestions.filter(
+    (question) =>
+      (!subject || question.subject === subject) && (!grade || String(question.grade) === grade)
+  );
+  renderRows();
+}
+
+function cell(text, className = null) {
+  const node = document.createElement('td');
+  node.textContent = text;
+  if (className) node.className = className;
+  return node;
+}
+
+function badgeCell(text, tone) {
+  const node = document.createElement('td');
+  const badge = document.createElement('span');
+  badge.className = `badge ${tone}`;
+  badge.textContent = text;
+  node.append(badge);
+  return node;
+}
+
+function actionsCell(question) {
+  const node = document.createElement('td');
+  node.className = 'row';
+
+  const edit = document.createElement('button');
+  edit.type = 'button';
+  edit.className = 'secondary';
+  edit.textContent = 'Edit';
+  edit.addEventListener('click', () => fillEditor(question));
+
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'secondary';
+  remove.textContent = 'Hapus';
+  remove.addEventListener('click', () => deleteQuestion(question));
+
+  node.append(edit, remove);
+  return node;
+}
+
+function renderRows() {
+  const rows = $('question-rows');
+  rows.replaceChildren();
+  $('count').textContent = visibleQuestions.length ? `(${visibleQuestions.length})` : '';
+
+  for (const question of visibleQuestions) {
+    const row = document.createElement('tr');
+    if (question.id === editingId) row.className = 'selected';
+
+    row.append(
+      cell(question.subject || '—'),
+      cell(question.grade ? `Kelas ${question.grade}` : '—'),
+      cell(question.chapter || '—'),
+      cell(TYPE_LABELS[question.type] ?? question.type),
+      cell(question.prompt || '—', 'cell-prompt'),
+      badgeCell(question.active ? 'Aktif' : 'Draf', question.active ? 'active' : 'draft'),
+      actionsCell(question)
+    );
+    rows.append(row);
+  }
+}
+
 function syncTypeFields() {
-  const isChoice = $('type').value === 'multiple_choice';
+  const isChoice = $('type').value === 'pg';
   $('option-fields').hidden = !isChoice;
-  $('answer').placeholder = isChoice ? 'A / B / C / D' : 'Accepted answers, separated by |';
+  $('answer').placeholder = isChoice ? 'A / B / C / D' : 'mencair|melebur';
 }
 
 function fillEditor(question = null) {
   editingId = question?.id ?? null;
   editingImagePath = question?.imagePath ?? null;
 
-  $('editor-title').textContent = editingId ? 'Edit question' : 'Add question';
-  $('save').textContent = editingId ? 'Update question' : 'Add question';
+  $('editor-title').textContent = editingId ? 'Edit soal' : 'Tambah soal';
+  $('save').textContent = editingId ? 'Simpan perubahan' : 'Tambah soal';
   $('cancel').hidden = !editingId;
 
   $('subject').value = question?.subject ?? '';
-  $('topic').value = question?.topic ?? '';
-  $('type').value = question?.type ?? 'multiple_choice';
+  $('grade').value = question?.grade ? String(question.grade) : '';
+  $('chapter').value = question?.chapter ?? '';
+  $('type').value = question?.type ?? 'pg';
   $('prompt').value = question?.prompt ?? '';
   $('option-a').value = question?.optionA ?? '';
   $('option-b').value = question?.optionB ?? '';
@@ -55,102 +149,31 @@ function fillEditor(question = null) {
   $('option-d').value = question?.optionD ?? '';
   $('answer').value = question?.answer ?? '';
   $('explanation').value = question?.explanation ?? '';
+  $('active').checked = Boolean(question?.active);
   $('image').value = '';
 
   syncTypeFields();
   renderRows();
 }
 
-function renderSubjectOptions(subjects) {
-  const filter = $('subject-filter');
-  const current = filter.value;
-  filter.innerHTML = '<option value="">All subjects</option>';
-
-  for (const subject of subjects) {
-    const option = document.createElement('option');
-    option.value = subject;
-    option.textContent = subject;
-    filter.append(option);
-
-    const suggestion = option.cloneNode(true);
-    if (!$('subject-options').querySelector(`option[value="${CSS.escape(subject)}"]`)) {
-      $('subject-options').append(suggestion);
-    }
-  }
-
-  filter.value = subjects.includes(current) ? current : '';
-}
-
-function renderRows() {
-  const rows = $('question-rows');
-  rows.replaceChildren();
-  $('count').textContent = questions.length ? `(${questions.length})` : '';
-
-  for (const question of questions) {
-    const row = document.createElement('tr');
-    if (question.id === editingId) row.className = 'selected';
-
-    const cells = [
-      question.subject,
-      question.topic ?? '',
-      question.prompt,
-      question.type === 'multiple_choice' ? 'Multiple choice' : 'Short answer',
-    ];
-
-    for (const value of cells) {
-      const cell = document.createElement('td');
-      cell.textContent = value;
-      cell.className = 'cell-question';
-      row.append(cell);
-    }
-
-    const actions = document.createElement('td');
-    actions.className = 'row';
-
-    const edit = document.createElement('button');
-    edit.type = 'button';
-    edit.className = 'secondary';
-    edit.textContent = 'Edit';
-    edit.addEventListener('click', () => fillEditor(question));
-
-    const remove = document.createElement('button');
-    remove.type = 'button';
-    remove.className = 'secondary';
-    remove.textContent = 'Delete';
-    remove.addEventListener('click', () => deleteQuestion(question));
-
-    actions.append(edit, remove);
-    row.append(actions);
-    rows.append(row);
-  }
-}
-
 async function refresh() {
   try {
     allQuestions = await repository.list();
-
-    const subjects = [...new Set(allQuestions.map((question) => question.subject))].sort();
-    renderSubjectOptions(subjects);
-
-    const subject = $('subject-filter').value;
-    questions = subject
-      ? allQuestions.filter((question) => question.subject === subject)
-      : allQuestions;
-
-    renderRows();
+    renderFilters();
+    applyFilters();
   } catch (error) {
     setStatus(error.message, 'error');
   }
 }
 
 async function deleteQuestion(question) {
-  if (!confirm(`Delete this question?\n\n${question.prompt}`)) return;
+  if (!confirm(`Hapus soal ini?\n\n${question.prompt ?? ''}`)) return;
 
   try {
     await repository.remove(question.id);
     if (editingId === question.id) fillEditor();
     await refresh();
-    setStatus('Question deleted.', 'success');
+    setStatus('Soal dihapus.', 'success');
   } catch (error) {
     setStatus(error.message, 'error');
   }
@@ -158,7 +181,7 @@ async function deleteQuestion(question) {
 
 $('login-form').addEventListener('submit', async (event) => {
   event.preventDefault();
-  setStatus('Signing in…');
+  setStatus('Masuk…');
 
   try {
     await signIn($('login-email').value.trim(), $('login-password').value);
@@ -171,25 +194,27 @@ $('login-form').addEventListener('submit', async (event) => {
 
 $('sign-out').addEventListener('click', async () => {
   await signOut();
-  questions = [];
+  allQuestions = [];
+  visibleQuestions = [];
   showLogin();
 });
 
 $('type').addEventListener('change', syncTypeFields);
+$('subject-filter').addEventListener('change', applyFilters);
+$('grade-filter').addEventListener('change', applyFilters);
 
 $('cancel').addEventListener('click', () => {
   $('editor-form').reset();
   fillEditor();
 });
 
-$('subject-filter').addEventListener('change', refresh);
-
 $('editor-form').addEventListener('submit', async (event) => {
   event.preventDefault();
 
   const draft = createQuestion({
     subject: $('subject').value,
-    topic: $('topic').value,
+    grade: $('grade').value,
+    chapter: $('chapter').value,
     type: $('type').value,
     prompt: $('prompt').value,
     optionA: $('option-a').value,
@@ -199,6 +224,7 @@ $('editor-form').addEventListener('submit', async (event) => {
     answer: $('answer').value,
     explanation: $('explanation').value,
     imagePath: editingImagePath,
+    active: $('active').checked,
   });
 
   const errors = validateQuestion(draft);
@@ -211,7 +237,7 @@ $('editor-form').addEventListener('submit', async (event) => {
   const isNew = !editingId;
 
   try {
-    setStatus(isNew ? 'Saving…' : 'Updating…');
+    setStatus(isNew ? 'Menyimpan…' : 'Memperbarui…');
     if (file) draft.imagePath = await uploadImage(file);
 
     if (isNew) await repository.create(draft);
@@ -220,7 +246,7 @@ $('editor-form').addEventListener('submit', async (event) => {
     $('editor-form').reset();
     fillEditor();
     await refresh();
-    setStatus(isNew ? 'Question added.' : 'Question updated.', 'success');
+    setStatus(isNew ? 'Soal ditambahkan.' : 'Soal diperbarui.', 'success');
   } catch (error) {
     setStatus(error.message, 'error');
   }
@@ -228,7 +254,7 @@ $('editor-form').addEventListener('submit', async (event) => {
 
 (async function boot() {
   if (SUPABASE_URL.includes('YOUR-PROJECT')) {
-    setStatus('Fill SUPABASE_URL and SUPABASE_ANON_KEY in src/config.js first.', 'error');
+    setStatus('Isi SUPABASE_URL dan SUPABASE_PUBLISHABLE_KEY di src/config.js dulu.', 'error');
     return;
   }
 
