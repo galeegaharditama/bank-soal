@@ -21,14 +21,17 @@
         <label>Kelas <select id="filter-grade"></select></label>
         <label>Bab <select id="filter-chapter"></select></label>
 
-        <fieldset class="amount">
-          <legend>Jumlah soal</legend>
-          <div class="segmented" id="amount-buttons">
-            <button type="button" data-amount="5" aria-pressed="false">5 soal</button>
-            <button type="button" data-amount="10" aria-pressed="true">10 soal</button>
-            <button type="button" data-amount="20" aria-pressed="false">20 soal</button>
+        <div class="amount">
+          <label for="amount">Jumlah soal</label>
+          <div class="amount-row">
+            <input id="amount" type="number" min="1" step="1" inputmode="numeric" value="10" />
+            <div class="segmented" id="amount-presets">
+              <button type="button" data-amount="5" aria-pressed="false">5</button>
+              <button type="button" data-amount="10" aria-pressed="true">10</button>
+              <button type="button" data-amount="20" aria-pressed="false">20</button>
+            </div>
           </div>
-        </fieldset>
+        </div>
 
         <button id="start" class="primary big block" type="button">Mulai</button>
         <p id="availability" class="muted"></p>

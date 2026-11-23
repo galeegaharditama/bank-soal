@@ -52,13 +52,20 @@ Add, edit and delete questions, upload an image, filter by mapel and kelas. The 
 
 ## Quiz (`quiz.html`)
 
-1. Pick mapel, kelas, bab and 5/10/20 questions. Empty filter → message instead of an empty screen.
-2. One question per card. **Lanjut** without answering skips it, **Kembali** returns, the number strip
+1. Pick mapel, kelas, bab and how many questions: type a number, or tap 5/10/20.
+   Asking for more than the bank holds is fine — everything available is used, and the line under the
+   button says how many (`12 soal tersedia (8 pilihan ganda, 4 isian) — 12 akan dipakai`).
+   Empty filter → message instead of an empty screen.
+2. Multiple choice comes first, then written answers. 75% of the count (rounded) is taken from `pg`,
+   the rest from `isian`; when one type runs out the other fills the gap, so 20 questions on a balanced
+   bank is 15 `pg` + 5 `isian`. The share lives in `PG_SHARE` (`src/domain/selection.js`).
+3. One question per card. **Lanjut** without answering skips it, **Kembali** returns, the number strip
    jumps anywhere, and answers can change until **Selesai**. No right/wrong mark or explanation yet.
-3. **Selesai** with open questions asks for confirmation and names the count.
-4. Result: score, then the full review (your answer, key, explanation) plus
-   **Ulangi semua**, **Ulangi yang salah**, **Ganti pilihan**.
-5. The last 5 sessions stay on the device (localStorage, 20 kept). The header shows
+4. **Selesai** with open questions asks for confirmation and names the count.
+5. Result: score, then the full review (your answer, key, explanation) plus
+   **Ulangi semua**, **Ulangi yang salah**, **Ganti pilihan**. Both retries keep the same questions,
+   only reordered multiple choice first.
+6. The last 5 sessions stay on the device (localStorage, 20 kept). The header shows
    `Data per <date>` from the newest `updated_at`.
 
 ## Import many questions (CSV)

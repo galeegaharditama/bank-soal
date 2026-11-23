@@ -1,4 +1,5 @@
 import { isCorrect, isAnswered, optionText, optionsOf } from '../domain/Question.js';
+import { selectQuestions, groupByType, countByType } from '../domain/selection.js';
 import { SupabaseQuestionRepository } from '../data/SupabaseQuestionRepository.js';
 import { publicImageUrl } from '../data/imageStorage.js';
 import { loadHistory, saveSession } from '../data/sessionHistory.js';
@@ -11,7 +12,8 @@ const $ = (id) => document.getElementById(id);
 let pool = [];      // active questions loaded once
 let session = null; // { questions, answers, index, filter }
 let result = null;  // { items, score, filter }
-let amount = 10;
+
+const TYPE_LABELS = { pg: 'Pilihan ganda', isian: 'Isian' };
 
 const shuffle = (items) => {
   const copy = [...items];
@@ -73,21 +75,38 @@ function fillChapters() {
   fillSelect($('filter-chapter'), chapters, 'Semua bab');
 }
 
+const requestedAmount = () => {
+  const value = Number($('amount').value);
+  return Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+};
+
 function updateAvailability() {
-  const available = matchingQuestions().length;
-  $('availability').textContent = !available
-    ? 'Belum ada soal untuk pilihan ini'
-    : available < amount
-      ? `${available} soal tersedia — kurang dari ${amount}, semua akan dipakai`
-      : `${available} soal tersedia`;
-  $('start').disabled = available === 0;
+  const matching = matchingQuestions();
+  const requested = requestedAmount();
+
+  if (!matching.length) {
+    $('availability').textContent = 'Belum ada soal untuk pilihan ini';
+    $('start').disabled = true;
+    return;
+  }
+
+  const { total, pg, isian } = countByType(matching);
+  const stock = `${total} soal tersedia (${pg} pilihan ganda, ${isian} isian)`;
+
+  $('availability').textContent =
+    requested < 1
+      ? `${stock}. Isi jumlah soal minimal 1.`
+      : `${stock} — ${Math.min(requested, total)} akan dipakai`;
+  $('start').disabled = requested < 1;
 }
 
-function setAmount(value) {
-  amount = value;
-  for (const button of $('amount-buttons').children) {
-    button.setAttribute('aria-pressed', String(Number(button.dataset.amount) === value));
+function syncAmountPresets() {
+  const requested = requestedAmount();
+
+  for (const button of $('amount-presets').children) {
+    button.setAttribute('aria-pressed', String(Number(button.dataset.amount) === requested));
   }
+
   updateAvailability();
 }
 
@@ -103,13 +122,20 @@ function startSession(questions, filter) {
 function start() {
   const filter = filterValues();
   const candidates = matchingQuestions();
+  const requested = requestedAmount();
+
   if (!candidates.length) {
     setStatus('Belum ada soal untuk pilihan itu. Coba ganti bab atau kelas.', 'error');
     return;
   }
 
+  if (requested < 1) {
+    setStatus('Isi jumlah soal minimal 1.', 'error');
+    return;
+  }
+
   setStatus('');
-  startSession(shuffle(candidates).slice(0, Math.min(amount, candidates.length)), filter);
+  startSession(selectQuestions(shuffle(candidates), requested), filter);
 }
 
 const confirmLeaving = (event) => {
@@ -164,7 +190,14 @@ function renderQuestion() {
 
   const meta = document.createElement('p');
   meta.className = 'meta';
-  meta.textContent = [question.subject, `Kelas ${question.grade}`, question.chapter].filter(Boolean).join(' · ');
+  meta.textContent = [
+    question.subject,
+    `Kelas ${question.grade}`,
+    question.chapter,
+    TYPE_LABELS[question.type],
+  ]
+    .filter(Boolean)
+    .join(' · ');
   card.append(meta);
 
   const prompt = document.createElement('p');
@@ -321,7 +354,7 @@ function renderResultActions() {
   repeat.className = 'primary';
   repeat.textContent = 'Ulangi semua';
   repeat.addEventListener('click', () =>
-    startSession(shuffle(result.items.map((item) => item.question)), result.filter)
+    startSession(groupByType(shuffle(result.items.map((item) => item.question))), result.filter)
   );
   actions.append(repeat);
 
@@ -332,7 +365,7 @@ function renderResultActions() {
     repeatWrong.className = 'secondary';
     repeatWrong.textContent = 'Ulangi yang salah';
     repeatWrong.addEventListener('click', () =>
-      startSession(shuffle(wrong.map((item) => item.question)), result.filter)
+      startSession(groupByType(shuffle(wrong.map((item) => item.question))), result.filter)
     );
     actions.append(repeatWrong);
   }
@@ -480,9 +513,13 @@ $('filter-grade').addEventListener('change', () => {
 });
 $('filter-chapter').addEventListener('change', updateAvailability);
 
-$('amount-buttons').addEventListener('click', (event) => {
+$('amount').addEventListener('input', syncAmountPresets);
+$('amount-presets').addEventListener('click', (event) => {
   const button = event.target.closest('button[data-amount]');
-  if (button) setAmount(Number(button.dataset.amount));
+  if (!button) return;
+
+  $('amount').value = button.dataset.amount;
+  syncAmountPresets();
 });
 
 $('start').addEventListener('click', start);
@@ -503,7 +540,7 @@ $('exit').addEventListener('click', exitSession);
     $('data-version').textContent = updatedAt ? `Data per ${longDate(updatedAt)}` : '';
 
     fillFilters();
-    setAmount(amount);
+    syncAmountPresets();
     renderHistory();
     showView('start');
   } catch (error) {
