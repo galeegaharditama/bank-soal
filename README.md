@@ -20,9 +20,22 @@ one free flow (skip, back, number strip), corrections only at the end, 5/10/20 q
 
 ## Columns
 
-The database columns follow the PRD sheet names, so a sheet export can be imported as is:
+The table uses English names. The editor, the quiz and the CSV import show the Indonesian PRD names;
+`src/data/SupabaseQuestionRepository.js` and `src/data/csv.js` are the only places that translate.
 
-`id, mapel, kelas, bab, tipe, soal, gambar, opsi_a…opsi_d, jawaban, pembahasan, aktif`
+| PRD / editor / CSV | Database |
+| --- | --- |
+| `id` | `id` |
+| `mapel` | `subject` |
+| `kelas` | `grade` (1–6) |
+| `bab` | `chapter` |
+| `tipe` | `type` (`pg` / `isian`) |
+| `soal` | `prompt` |
+| `gambar` | `image_path` |
+| `opsi_a`…`opsi_d` | `option_a`…`option_d` |
+| `jawaban` | `answer` |
+| `pembahasan` | `explanation` |
+| `aktif` | `active` |
 
 Rules from PRD 6, enforced in `src/domain/Question.js`:
 
@@ -30,9 +43,6 @@ Rules from PRD 6, enforced in `src/domain/Question.js`:
 - `pg` needs at least two options and `jawaban` must point to a filled option.
 - `pembahasan` is required.
 - A row saved with **Aktif** unchecked is a draft: it may be incomplete and never reaches the quiz.
-
-The JavaScript code keeps English names; `src/data/SupabaseQuestionRepository.js` is the single place
-that translates `mapel ↔ subject`, `kelas ↔ grade`, and so on.
 
 ## Editor (`index.html`)
 
@@ -58,9 +68,9 @@ In the editor, **Impor CSV** → choose the file → **Periksa file**. Nothing i
 
 - Export the sheet as CSV: **File → Download → Comma-separated values** (Excel in Indonesian locale
   may save `;` instead of `,` — both work).
-- Headers must include `mapel` and `soal`. The rest are optional; `mapel, kelas, bab, tipe, soal,
-  gambar, opsi_a…opsi_d, jawaban, pembahasan, aktif` is the full set. Common aliases
-  (`Mata Pelajaran`, `Type`, `Answer`, …) are accepted.
+- Headers may be Indonesian (`mapel`, `kelas`, `soal`, …) or English (`subject`, `grade`, `prompt`, …).
+  `mapel` and `soal` are required; `mapel, kelas, bab, tipe, soal, gambar, opsi_a…opsi_d, jawaban,
+  pembahasan, aktif` is the full set. Common aliases (`Mata Pelajaran`, `Type`, `Answer`, …) work too.
 - `tipe` accepts `pg` / `pilihan ganda` / `isian`. Unknown values reject the row.
 - `aktif` accepts `ya`/`tidak` (`true`/`1` too). Missing column or blank cell means published.
 - `gambar` may be an image URL from the sheet, or left empty.
