@@ -83,9 +83,10 @@ Rename once and every question follows, because questions point at ids.
 
 ## Import many questions (CSV)
 
-In the editor, **Impor CSV** → choose the file → **Periksa file**. Nothing is written until you press
-**Impor N soal**, and every rejected row is listed with its line number and the reason.
-`sample-import.csv` in this folder is a working example.
+In the editor, **Impor CSV** → **Unduh template** gives you a ready-to-fill file (header plus one
+`pg` and one `isian` example, both saved as drafts). Then choose the file → **Periksa file**.
+Nothing is written until you press **Impor N soal**, and every rejected row is listed with its line
+number and the reason. `sample-import.csv` in this folder is another working example.
 
 - Export the sheet as CSV: **File → Download → Comma-separated values** (Excel in Indonesian locale
   may save `;` instead of `,` — both work).

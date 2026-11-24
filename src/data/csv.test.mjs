@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { parseCsv, rowsToQuestions } from './csv.js';
+import { buildTemplateCsv } from './csvTemplate.js';
 
 assert.deepEqual(parseCsv('a,b\n"x, y","say ""hi"""\n'), [
   ['a', 'b'],
@@ -54,5 +55,15 @@ assert.equal(aliasHeaders.questions[0].subject, 'IPA');
 assert.equal(aliasHeaders.questions[0].type, 'isian');
 
 assert.throws(() => rowsToQuestions('kelas,soal\n3,Halo'), /Kolom wajib tidak ditemukan: mapel/);
+
+// The downloadable template must import as it is.
+const template = rowsToQuestions(buildTemplateCsv());
+assert.equal(template.questions.length, 2, 'template carries two example rows');
+assert.equal(template.rejected.length, 0, 'template rows are valid');
+assert.deepEqual(template.questions.map((question) => question.type), ['pg', 'isian']);
+assert.ok(
+  template.questions.every((question) => question.active === false),
+  'examples stay drafts so a mistaken import cannot publish them'
+);
 
 console.log('CSV import checks passed.');

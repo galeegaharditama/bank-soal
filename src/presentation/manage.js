@@ -3,6 +3,7 @@ import { SupabaseQuestionRepository } from '../data/SupabaseQuestionRepository.j
 import { SupabaseTaxonomyRepository } from '../data/SupabaseTaxonomyRepository.js';
 import { uploadImage } from '../data/imageStorage.js';
 import { rowsToQuestions } from '../data/csv.js';
+import { buildTemplateCsv, TEMPLATE_FILE_NAME } from '../data/csvTemplate.js';
 import { signIn, signOut, currentUser } from '../data/auth.js';
 import { fillSelect, fillOptions, unique } from './dom.js';
 import { SUPABASE_URL } from '../config.js';
@@ -558,6 +559,18 @@ function renderImportReport(questions, rejected, plan) {
     report.append(rest);
   }
 }
+
+$('import-template').addEventListener('click', () => {
+  const blob = new Blob([buildTemplateCsv()], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = TEMPLATE_FILE_NAME;
+  link.click();
+
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
 
 $('import-preview').addEventListener('click', async () => {
   const file = $('import-file').files[0];
