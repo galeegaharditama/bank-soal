@@ -33,6 +33,11 @@ export class QuestionRepository {
     throw new Error('QuestionRepository.setActive is not implemented');
   }
 
+  /** @param {{ subjectId?: string, chapterId?: string }} [filter] @returns {Promise<number>} */
+  async count(filter) {
+    throw new Error('QuestionRepository.count is not implemented');
+  }
+
   /** @param {Question[]} questions @returns {Promise<number>} */
   async createMany(questions) {
     throw new Error('QuestionRepository.createMany is not implemented');

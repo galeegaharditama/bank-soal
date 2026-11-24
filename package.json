@@ -2,7 +2,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node src/domain/Question.test.mjs && node src/domain/selection.test.mjs && node src/data/csv.test.mjs",
+    "check": "node src/domain/Question.test.mjs && node src/domain/selection.test.mjs && node src/domain/Taxonomy.test.mjs && node src/data/csv.test.mjs",
     "serve": "npx --yes serve . -l 5173"
   }
 }

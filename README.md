@@ -9,8 +9,9 @@ one free flow (skip, back, number strip), corrections only at the end, 5/10/20 q
 1. Create a project at supabase.com (free plan is enough).
 2. SQL Editor → paste all of `schema.sql` → Run. The script is safe to run again; it recreates the
    policies and keeps the existing rows.
-   Already ran an older version with different columns? Run `drop table if exists public.questions;`
-   first, then this file again.
+   Coming from the older flat table (`subject`/`chapter` text columns)? **Export `questions` to CSV
+   first**, then run `schema.sql`, then `migration-relations.sql` (it prints two counts that must both
+   be 0), and finally `migration-drop-legacy.sql`.
 3. Authentication → Users → **Add user** (email + password, confirm it). This is the editor login.
    Then Authentication → **Sign In / Providers** → Email → disable *Allow new users to sign up*.
 4. Settings → **API Keys** (the old "Settings → API" page is gone). Copy **Project URL** from the top
@@ -19,34 +20,38 @@ one free flow (skip, back, number strip), corrections only at the end, 5/10/20 q
 5. Serve the folder: `npm run serve` → http://localhost:5173.
    ES modules do not load from `file://`, so opening the HTML by double-click will not work.
 
-## Columns
+## Data model
 
-The table uses English names. The editor, the quiz and the CSV import show the Indonesian PRD names;
-`src/data/SupabaseQuestionRepository.js` and `src/data/csv.js` are the only places that translate.
+- `subjects` — mapel. `name` is unique case-insensitively.
+- `chapters` — bab, one per mapel + kelas (`subject_id`, `grade`, `name`, unique per mapel+kelas).
+- `questions` — soal; stores `subject_id`, `grade` and an optional `chapter_id`. A composite foreign
+  key makes it impossible to point a kelas-3 question at a kelas-4 chapter.
 
-| PRD / editor / CSV | Database |
-| --- | --- |
-| `id` | `id` |
-| `mapel` | `subject` |
-| `kelas` | `grade` (1–6) |
-| `bab` | `chapter` |
-| `tipe` | `type` (`pg` / `isian`) |
-| `soal` | `prompt` |
-| `gambar` | `image_path` |
-| `opsi_a`…`opsi_d` | `option_a`…`option_d` |
-| `jawaban` | `answer` |
-| `pembahasan` | `explanation` |
-| `aktif` | `active` |
+The editor, the quiz and the CSV import speak Indonesian (`mapel, kelas, bab, tipe, soal, gambar,
+opsi_a…d, jawaban, pembahasan, aktif`); the tables keep English column names and store ids instead of
+copying names around. `src/data/SupabaseQuestionRepository.js` and `src/data/csv.js` translate.
 
 Rules from PRD 6, enforced in `src/domain/Question.js`:
 
+- `mapel` must exist (chosen from the list), `bab` is optional.
 - `kelas` is 1–6, `tipe` is `pg` or `isian`.
 - `pg` needs at least two options and `jawaban` must point to a filled option.
 - `pembahasan` is required.
 - A row saved with **Aktif** unchecked is a draft: it may be incomplete and never reaches the quiz.
 
+## Mapel & Bab (`taxonomy.html`)
+
+Rename once and every question follows, because questions point at ids.
+
+- Add, rename or delete a mapel; add, rename or delete a bab per mapel + kelas.
+- Deleting something still in use is refused with the count ("masih dipakai 12 soal") — move or delete
+  those questions first.
+- New mapel/bab can also be created by the CSV import (see below).
+
 ## Editor (`index.html`)
 
+- **Mapel** and **Bab** are dropdowns. The bab list follows the chosen mapel + kelas and stays disabled
+  until both are picked; **+ Mapel / Bab** lives on the taxonomy page.
 - **Tambah soal** at the top opens the editor in a modal dialog; clicking a row (or **Edit**) opens
   the same dialog filled in, so the list keeps its filters and scroll position.
 - Unsaved changes ask for confirmation on Esc, backdrop click, close or **Batal**.
@@ -90,6 +95,8 @@ In the editor, **Impor CSV** → choose the file → **Periksa file**. Nothing i
 - `tipe` accepts `pg` / `pilihan ganda` / `isian`. Unknown values reject the row.
 - `aktif` accepts `ya`/`tidak` (`true`/`1` too). Missing column or blank cell means published.
 - `gambar` may be an image URL from the sheet, or left empty.
+- Mapel and bab that do not exist yet are **created automatically**, after the preview lists them
+  ("Mapel baru akan dibuat: IPA. Bab baru akan dibuat: IPA kelas 3 · Wujud Benda.").
 - Rows are validated with the same PRD rules, so invalid rows never enter the database.
 
 Re-importing the same file creates duplicates — there is no de-duplication by `id` yet, so delete the
@@ -99,7 +106,7 @@ previous batch in the editor first if you need to redo an import.
 
 ```
 src/domain     entities and rules (no I/O, no DOM)
-src/data       Supabase repository, CSV import, auth, image storage, local session history
+src/data       Supabase repositories (questions, mapel/bab), CSV import, auth, storage, local history
 src/presentation  pages, DOM helpers, styles
 ```
 

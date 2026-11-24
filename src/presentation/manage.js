@@ -1,12 +1,14 @@
 import { createQuestion, validateQuestion, GRADES } from '../domain/Question.js';
 import { SupabaseQuestionRepository } from '../data/SupabaseQuestionRepository.js';
+import { SupabaseTaxonomyRepository } from '../data/SupabaseTaxonomyRepository.js';
 import { uploadImage } from '../data/imageStorage.js';
 import { rowsToQuestions } from '../data/csv.js';
 import { signIn, signOut, currentUser } from '../data/auth.js';
-import { fillSelect, unique } from './dom.js';
+import { fillSelect, fillOptions, unique } from './dom.js';
 import { SUPABASE_URL } from '../config.js';
 
 const repository = new SupabaseQuestionRepository();
+const taxonomy = new SupabaseTaxonomyRepository();
 const $ = (id) => document.getElementById(id);
 const dialog = $('editor-dialog');
 
@@ -14,6 +16,8 @@ const TYPE_LABELS = { pg: 'Pilihan ganda', isian: 'Isian' };
 
 let allQuestions = [];
 let visibleQuestions = [];
+let subjects = [];
+let chapters = [];
 let selectedIds = new Set();
 let editingId = null;
 let editingImagePath = null;
@@ -77,24 +81,26 @@ async function showApp() {
 
 /* ---------- filters & list ---------- */
 
-function fillDatalist(id, values) {
-  const list = $(id);
-  list.replaceChildren();
+function renderFilters() {
+  const subjectNames = unique(subjects.map((subject) => subject.name).filter(Boolean));
 
-  for (const value of values) {
-    const option = document.createElement('option');
-    option.value = value;
-    list.append(option);
-  }
+  fillSelect($('subject-filter'), subjectNames, 'Semua mapel');
+  fillSelect($('grade-filter'), GRADES, 'Semua kelas', (grade) => `Kelas ${grade}`);
+
+  fillOptions($('subject'), subjects, '— Pilih mapel —', (subject) => subject.id, (subject) => subject.name);
+  refreshChapterOptions();
 }
 
-function renderFilters() {
-  const subjects = unique(allQuestions.map((question) => question.subject).filter(Boolean));
-  fillDatalist('subject-options', subjects);
-  fillDatalist('chapter-options', unique(allQuestions.map((question) => question.chapter).filter(Boolean)));
+function refreshChapterOptions(selectedId = '') {
+  const subjectId = $('subject').value;
+  const grade = $('grade').value;
+  const list = chapters.filter(
+    (chapter) => chapter.subjectId === subjectId && String(chapter.grade) === grade
+  );
 
-  fillSelect($('subject-filter'), subjects, 'Semua mapel');
-  fillSelect($('grade-filter'), GRADES, 'Semua kelas', (grade) => `Kelas ${grade}`);
+  fillOptions($('chapter'), list, '— Tanpa bab —', (chapter) => chapter.id, (chapter) => chapter.name);
+  $('chapter').disabled = !subjectId || !grade;
+  $('chapter').value = list.some((chapter) => chapter.id === selectedId) ? selectedId : '';
 }
 
 function applyFilters() {
@@ -240,7 +246,8 @@ function renderRows() {
 
 async function refresh() {
   try {
-    allQuestions = await repository.list();
+    [allQuestions, subjects] = await Promise.all([repository.list(), taxonomy.listSubjects()]);
+    chapters = await taxonomy.listChapters();
     renderFilters();
     applyFilters();
   } catch (error) {
@@ -361,9 +368,9 @@ function openEditor(question = null, mode = 'add') {
   $('save').textContent = mode === 'edit' ? 'Simpan perubahan' : 'Simpan';
   $('save-more').hidden = mode !== 'add';
 
-  $('subject').value = source?.subject ?? '';
+  $('subject').value = source?.subjectId ?? '';
   $('grade').value = source?.grade ? String(source.grade) : '';
-  $('chapter').value = source?.chapter ?? '';
+  refreshChapterOptions(source?.chapterId ?? '');
   $('type').value = source?.type ?? 'pg';
   $('prompt').value = source?.prompt ?? '';
   $('option-a').value = source?.optionA ?? '';
@@ -406,6 +413,8 @@ dialog.addEventListener('click', (event) => {
 $('editor-close').addEventListener('click', requestClose);
 $('cancel').addEventListener('click', requestClose);
 $('type').addEventListener('change', syncTypeFields);
+$('subject').addEventListener('change', () => refreshChapterOptions());
+$('grade').addEventListener('change', () => refreshChapterOptions());
 $('new-question').addEventListener('click', () => openEditor());
 
 $('editor-form').addEventListener('submit', async (event) => {
@@ -414,9 +423,9 @@ $('editor-form').addEventListener('submit', async (event) => {
   const isEdit = editorMode === 'edit';
 
   const draft = createQuestion({
-    subject: $('subject').value,
+    subjectId: $('subject').value || null,
+    chapterId: $('chapter').value || null,
     grade: $('grade').value,
-    chapter: $('chapter').value,
     type: $('type').value,
     prompt: $('prompt').value,
     optionA: $('option-a').value,
@@ -501,7 +510,7 @@ $('sign-out').addEventListener('click', async () => {
 
 /* ---------- CSV import ---------- */
 
-function renderImportReport(questions, rejected) {
+function renderImportReport(questions, rejected, plan) {
   const report = $('import-report');
   report.replaceChildren();
 
@@ -510,6 +519,24 @@ function renderImportReport(questions, rejected) {
     ? `${questions.length} soal siap diimpor, ${rejected.length} baris ditolak.`
     : `${questions.length} soal siap diimpor.`;
   report.append(summary);
+
+  if (plan?.missingSubjects.length) {
+    const line = document.createElement('p');
+    line.className = 'muted';
+    line.textContent = `Mapel baru akan dibuat: ${plan.missingSubjects.join(', ')}.`;
+    report.append(line);
+  }
+
+  if (plan?.missingChapters.length) {
+    const line = document.createElement('p');
+    line.className = 'muted';
+    const shown = plan.missingChapters.slice(0, 5).map(
+      (chapter) => `${chapter.subjectName} kelas ${chapter.grade} · ${chapter.name}`
+    );
+    const rest = plan.missingChapters.length - shown.length;
+    line.textContent = `Bab baru akan dibuat: ${shown.join('; ')}${rest > 0 ? `; dan ${rest} lainnya` : ''}.`;
+    report.append(line);
+  }
 
   if (!rejected.length) return;
 
@@ -541,8 +568,10 @@ $('import-preview').addEventListener('click', async () => {
 
   try {
     const { questions, rejected } = rowsToQuestions(await file.text());
+    const plan = await taxonomy.plan(questions);
+
     pendingImport = questions;
-    renderImportReport(questions, rejected);
+    renderImportReport(questions, rejected, plan);
 
     $('import-save').hidden = questions.length === 0;
     $('import-save').textContent = `Impor ${questions.length} soal`;
@@ -562,6 +591,13 @@ $('import-save').addEventListener('click', async () => {
 
   try {
     setStatus('Mengimpor…');
+
+    const lookups = await taxonomy.ensure(pendingImport);
+    for (const question of pendingImport) {
+      question.subjectId = lookups.subjectIdFor(question.subject);
+      question.chapterId = lookups.chapterIdFor(question);
+    }
+
     await repository.createMany(pendingImport);
 
     pendingImport = [];

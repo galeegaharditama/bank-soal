@@ -10,6 +10,7 @@
   <header class="topbar">
     <h1>Kelola Bank Soal</h1>
     <div class="topbar-meta">
+      <a href="taxonomy.html">Mapel &amp; Bab</a>
       <a href="quiz.html">Buka latihan</a>
       <button id="sign-out" class="link" type="button" hidden>Keluar</button>
     </div>
@@ -88,8 +89,7 @@
 
       <div class="dialog-body">
         <div class="grid-2">
-          <label>Mapel <input id="subject" list="subject-options" /></label>
-          <datalist id="subject-options"></datalist>
+          <label>Mapel <select id="subject"></select></label>
 
           <label>Kelas
             <select id="grade">
@@ -103,8 +103,7 @@
             </select>
           </label>
 
-          <label>Bab <input id="chapter" list="chapter-options" /></label>
-          <datalist id="chapter-options"></datalist>
+          <label>Bab <select id="chapter" disabled></select></label>
 
           <label>Tipe
             <select id="type">

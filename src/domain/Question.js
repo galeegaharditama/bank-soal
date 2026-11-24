@@ -2,9 +2,11 @@
  * Question entity: one exam item, matching the PRD columns.
  * @typedef {Object} Question
  * @property {string|null} id
- * @property {string} subject        mapel
+ * @property {string|null} subjectId     mapel (foreign key)
+ * @property {string|null} chapterId     bab (foreign key, optional)
+ * @property {string} subject        mapel name, for display
  * @property {number|null} grade     kelas, 1-6
- * @property {string|null} chapter   bab
+ * @property {string|null} chapter   bab name, for display
  * @property {'pg'|'isian'} type     tipe
  * @property {string} prompt         soal
  * @property {string|null} imagePath gambar (object path inside the bucket, not a URL)
@@ -32,6 +34,8 @@ const gradeOf = (value) => {
 export function createQuestion(input = {}) {
   return {
     id: input.id ?? null,
+    subjectId: input.subjectId ?? null,
+    chapterId: input.chapterId ?? null,
     subject: text(input.subject),
     grade: gradeOf(input.grade),
     chapter: optionalText(input.chapter),
@@ -67,7 +71,8 @@ export function validateQuestion(question) {
   if (!question.active) return [];
 
   const errors = [];
-  if (!question.subject) errors.push('Mapel wajib diisi.');
+  // The editor stores the id; imported rows arrive with the name only.
+  if (!question.subjectId && !question.subject) errors.push('Mapel wajib dipilih.');
   if (!question.grade) errors.push('Kelas harus 1 sampai 6.');
   if (!question.prompt) errors.push('Soal wajib diisi.');
   if (!question.explanation) errors.push('Pembahasan wajib diisi.');

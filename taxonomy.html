@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bank Soal · Mapel & Bab</title>
+  <link rel="stylesheet" href="src/presentation/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Mapel &amp; Bab</h1>
+    <div class="topbar-meta">
+      <a href="index.html">Daftar soal</a>
+      <a href="quiz.html">Latihan</a>
+      <button id="sign-out" class="link" type="button" hidden>Keluar</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="login-view" hidden>
+      <form id="login-form" class="card narrow">
+        <h2>Masuk</h2>
+        <p class="muted">Pakai akun editor yang sama dengan halaman Kelola.</p>
+        <label>Email <input id="login-email" type="email" autocomplete="username" required /></label>
+        <label>Kata sandi <input id="login-password" type="password" autocomplete="current-password" required /></label>
+        <button type="submit" class="primary">Masuk</button>
+      </form>
+    </section>
+
+    <section id="app-view" hidden>
+      <p id="status" class="status" role="status" aria-live="polite" hidden></p>
+
+      <section class="card">
+        <h2>Mapel</h2>
+        <form id="subject-form" class="inline-form">
+          <input id="subject-name" placeholder="Nama mapel baru" aria-label="Nama mapel baru" maxlength="60" />
+          <button type="submit" class="primary">Tambah mapel</button>
+        </form>
+        <ul id="subject-list" class="taxonomy-list"></ul>
+      </section>
+
+      <section class="card">
+        <h2>Bab</h2>
+        <div class="row">
+          <select id="filter-subject" aria-label="Mapel"></select>
+          <select id="filter-grade" aria-label="Kelas"></select>
+        </div>
+        <form id="chapter-form" class="inline-form">
+          <input id="chapter-name" placeholder="Nama bab baru" aria-label="Nama bab baru" maxlength="60" />
+          <button type="submit" class="primary">Tambah bab</button>
+        </form>
+        <ul id="chapter-list" class="taxonomy-list"></ul>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="src/presentation/taxonomy.js"></script>
+</body>
+</html>

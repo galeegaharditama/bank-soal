@@ -2,6 +2,11 @@ export const unique = (values) => [...new Set(values)].sort((a, b) => String(a).
 
 /** Rebuild a select from values, keeping the previous choice when it still exists. */
 export function fillSelect(select, values, emptyLabel, label = String) {
+  fillOptions(select, values, emptyLabel, (value) => value, (value) => label(value));
+}
+
+/** Same, for items that are objects (mapel, bab): valueOf/labelOf pick the id and the text. */
+export function fillOptions(select, items, emptyLabel, valueOf, labelOf) {
   const previous = select.value;
   select.replaceChildren();
 
@@ -10,14 +15,14 @@ export function fillSelect(select, values, emptyLabel, label = String) {
   empty.textContent = emptyLabel;
   select.append(empty);
 
-  for (const value of values) {
+  for (const item of items) {
     const option = document.createElement('option');
-    option.value = String(value);
-    option.textContent = label(value);
+    option.value = String(valueOf(item));
+    option.textContent = labelOf(item);
     select.append(option);
   }
 
-  if (values.map(String).includes(previous)) select.value = previous;
+  if ([...select.options].some((option) => option.value === previous)) select.value = previous;
 }
 
 const parseDate = (iso) => {

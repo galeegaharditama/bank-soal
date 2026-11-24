@@ -4,14 +4,16 @@ import { supabase } from './supabaseClient.js';
 
 const TABLE = 'questions';
 const COLUMNS =
-  'id, subject, grade, chapter, type, prompt, image_path, option_a, option_b, option_c, option_d, answer, explanation, active';
+  'id, subject_id, chapter_id, grade, type, prompt, image_path, option_a, option_b, option_c, option_d, answer, explanation, active';
 
-const toEntity = (row) =>
+const toEntity = (row, subjectNames = new Map(), chapterNames = new Map()) =>
   createQuestion({
     id: row.id,
-    subject: row.subject,
+    subjectId: row.subject_id,
+    chapterId: row.chapter_id,
+    subject: subjectNames.get(row.subject_id) ?? '',
+    chapter: chapterNames.get(row.chapter_id) ?? null,
     grade: row.grade,
-    chapter: row.chapter,
     type: row.type,
     prompt: row.prompt,
     imagePath: row.image_path,
@@ -26,9 +28,9 @@ const toEntity = (row) =>
 
 const toRow = (question) => ({
   ...(question.id ? { id: question.id } : {}),
-  subject: question.subject || null,
+  subject_id: question.subjectId,
+  chapter_id: question.chapterId,
   grade: question.grade,
-  chapter: question.chapter,
   type: question.type,
   prompt: question.prompt || null,
   image_path: question.imagePath,
@@ -47,9 +49,20 @@ export class SupabaseQuestionRepository extends QuestionRepository {
     let query = supabase.from(TABLE).select(COLUMNS).order('created_at', { ascending: false });
     if (activeOnly) query = query.eq('active', true);
 
-    const { data, error } = await query;
-    if (error) throw error;
-    return data.map(toEntity);
+    const [questions, subjects, chapters] = await Promise.all([
+      query,
+      supabase.from('subjects').select('id, name'),
+      supabase.from('chapters').select('id, name'),
+    ]);
+
+    if (questions.error) throw questions.error;
+    if (subjects.error) throw subjects.error;
+    if (chapters.error) throw chapters.error;
+
+    const subjectNames = new Map(subjects.data.map((row) => [row.id, row.name]));
+    const chapterNames = new Map(chapters.data.map((row) => [row.id, row.name]));
+
+    return questions.data.map((row) => toEntity(row, subjectNames, chapterNames));
   }
 
   async create(question) {
@@ -81,6 +94,17 @@ export class SupabaseQuestionRepository extends QuestionRepository {
     if (!ids.length) return;
     const { error } = await supabase.from(TABLE).update({ active }).in('id', ids);
     if (error) throw error;
+  }
+
+  /** How many questions use a mapel or a bab; used before deleting one. */
+  async count({ subjectId = null, chapterId = null } = {}) {
+    let query = supabase.from(TABLE).select('id', { count: 'exact', head: true });
+    if (subjectId) query = query.eq('subject_id', subjectId);
+    if (chapterId) query = query.eq('chapter_id', chapterId);
+
+    const { count, error } = await query;
+    if (error) throw error;
+    return count ?? 0;
   }
 
   /** Bulk insert for the CSV import, 100 rows per request. */
