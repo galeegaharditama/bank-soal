@@ -35,6 +35,21 @@
         <span id="count" class="muted"></span>
       </div>
 
+      <section class="card" id="import-card">
+        <h2>Impor CSV</h2>
+        <p class="muted">
+          Kolom: <code>mapel, kelas, bab, tipe, soal, gambar, opsi_a, opsi_b, opsi_c, opsi_d, jawaban,
+          pembahasan, aktif</code>. Pemisah koma atau titik koma. Baris yang melanggar aturan PRD
+          ditolak dan disebut nomornya; tidak ada yang ditulis sebelum kamu menekan Impor.
+        </p>
+        <label>File CSV <input id="import-file" type="file" accept=".csv,text/csv" /></label>
+        <div class="row">
+          <button type="button" id="import-preview" class="secondary">Periksa file</button>
+          <button type="button" id="import-save" class="primary" hidden>Impor</button>
+        </div>
+        <div id="import-report"></div>
+      </section>
+
       <div id="bulk-bar" class="bulk-bar" hidden>
         <span id="bulk-count"></span>
         <button type="button" id="bulk-activate" class="secondary">Aktifkan</button>
@@ -56,21 +71,6 @@
         </div>
         <div id="question-list"></div>
         <p id="empty-state" class="empty-state" hidden></p>
-      </section>
-
-      <section class="card" id="import-card">
-        <h2>Impor CSV</h2>
-        <p class="muted">
-          Kolom: <code>mapel, kelas, bab, tipe, soal, gambar, opsi_a, opsi_b, opsi_c, opsi_d, jawaban,
-          pembahasan, aktif</code>. Pemisah koma atau titik koma. Baris yang melanggar aturan PRD
-          ditolak dan disebut nomornya; tidak ada yang ditulis sebelum kamu menekan Impor.
-        </p>
-        <label>File CSV <input id="import-file" type="file" accept=".csv,text/csv" /></label>
-        <div class="row">
-          <button type="button" id="import-preview" class="secondary">Periksa file</button>
-          <button type="button" id="import-save" class="primary" hidden>Impor</button>
-        </div>
-        <div id="import-report"></div>
       </section>
     </section>
 
