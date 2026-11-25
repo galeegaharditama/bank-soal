@@ -100,8 +100,20 @@ number and the reason. `sample-import.csv` in this folder is another working exa
   ("Mapel baru akan dibuat: IPA. Bab baru akan dibuat: IPA kelas 3 · Wujud Benda.").
 - Rows are validated with the same PRD rules, so invalid rows never enter the database.
 
-Re-importing the same file creates duplicates — there is no de-duplication by `id` yet, so delete the
+Re-importing the same file creates duplicates - there is no de-duplication by `id` yet, so delete the
 previous batch in the editor first if you need to redo an import.
+
+## Export questions (CSV)
+
+Two ways, both produce a file the importer above reads back unchanged:
+
+- **Ekspor CSV** in the toolbar exports every row that matches the current mapel/kelas filter and search box.
+- Tick rows first, then **Ekspor** in the bulk bar to export only those.
+
+Columns are the Indonesian set (`mapel, kelas, bab, tipe, soal, gambar, opsi_a...opsi_d, jawaban,
+pembahasan, aktif`), separated by `;` so Excel in an Indonesian locale opens it in columns, with a
+UTF-8 BOM. Drafts are included and stay `aktif = tidak`, so an export also works as a backup before
+the migrations. `gambar` holds the storage path, not a full URL.
 
 ## Structure
 

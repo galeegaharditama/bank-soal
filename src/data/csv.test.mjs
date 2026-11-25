@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { parseCsv, rowsToQuestions } from './csv.js';
+import { parseCsv, rowsToQuestions, questionsToCsv } from './csv.js';
+import { createQuestion } from '../domain/Question.js';
 import { buildTemplateCsv } from './csvTemplate.js';
 
 assert.deepEqual(parseCsv('a,b\n"x, y","say ""hi"""\n'), [
@@ -65,5 +66,32 @@ assert.ok(
   template.questions.every((question) => question.active === false),
   'examples stay drafts so a mistaken import cannot publish them'
 );
+
+// Export must survive this same importer untouched: comma, quote, newline, draft, alternatives.
+const exported = questionsToCsv([
+  createQuestion({
+    subject: 'Matematika', grade: 3, chapter: 'Pecahan', type: 'pg',
+    prompt: 'A, B "kutip" dan\nbaris baru', optionA: '1', optionB: '2',
+    answer: 'A', explanation: 'Pembahasan', active: true,
+  }),
+  createQuestion({
+    subject: 'Bahasa Jawa', grade: 1, type: 'isian',
+    prompt: 'Mripat kanggo ...', answer: 'ndeleng|ningali', explanation: 'Pembahasan', active: false,
+  }),
+]);
+
+assert.equal(
+  exported.replace(/^\uFEFF/, '').split('\r\n')[0],
+  '"mapel";"kelas";"bab";"tipe";"soal";"gambar";"opsi_a";"opsi_b";"opsi_c";"opsi_d";"jawaban";"pembahasan";"aktif"'
+);
+
+const roundTrip = rowsToQuestions(exported);
+assert.equal(roundTrip.questions.length, 2, 'export can be imported back');
+assert.equal(roundTrip.rejected.length, 0, 'exported rows are valid');
+assert.equal(roundTrip.questions[0].prompt, 'A, B "kutip" dan\nbaris baru');
+assert.equal(roundTrip.questions[0].grade, 3, 'kelas survives as a number');
+assert.equal(roundTrip.questions[1].answer, 'ndeleng|ningali');
+assert.equal(roundTrip.questions[1].chapter, null, 'empty bab becomes null');
+assert.equal(roundTrip.questions[1].active, false, 'draft stays a draft');
 
 console.log('CSV import checks passed.');

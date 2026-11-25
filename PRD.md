@@ -163,9 +163,15 @@ Dianggap selesai kalau semua ini benar:
 - [ ] Jumlah soal 5/10/20 dihormati; kalau kurang, pakai semua yang ada.
 - [ ] Filter kosong memberi pesan, bukan layar kosong.
 - [ ] Riwayat menyimpan filter, skor, dan id soal yang salah (maks 20 entri, tampil 5).
-- [ ] Sync menolak data rusak dan **tidak** menimpa `data/soal.json`.
+- [ ] Impor menolak baris yang melanggar aturan dan tidak menulis apa pun sebelum ditekan *Impor*.
 - [ ] Setelah kunjungan pertama, app terbuka tanpa jaringan.
 - [ ] Semua tombol bisa dijangkau dengan jempol dan punya label teks (bukan hanya warna).
+
+**Ekspor**
+- [ ] Ekspor CSV mengikuti filter mapel/kelas dan kotak cari yang sedang aktif.
+- [ ] Ekspor dari bilah pilihan hanya memuat baris yang dicentang.
+- [ ] File hasil ekspor bisa diimpor kembali tanpa kehilangan isi, termasuk draf (`aktif = tidak`).
+- [ ] Nama file menyebut mapel, kelas, dan tanggal.
 
 ## 10. Metrik
 
@@ -196,7 +202,8 @@ Agregasi lintas siswa **tidak** termasuk v1. Itu konsekuensi dari pilihan "tanpa
 |---|---|---|
 | **v0.9** | Versi pertama: latihan dengan pembahasan per soal, 45 soal contoh, filter mapel/kelas/bab, riwayat lokal, PWA, sync + validasi | digantikan v1.0 |
 | **v1.0** | Satu alur bebas (lewati, kembali, deret nomor), koreksi di akhir, pilihan jumlah soal, review lengkap, "ulangi yang salah" | sudah ada |
-| **v1.1** | Tombol lapor soal, ikon PNG, rapikan tampilan hasil | berikutnya |
+| **v1.1** | Ekspor CSV (ikuti filter atau baris terpilih), impor CSV, data di Supabase | sudah ada |
+| **v1.2** | Tombol lapor soal, ikon PNG, rapikan tampilan hasil | berikutnya |
 | **v2** | Rekap untuk guru | hanya jika ada kebutuhan nyata + backend |
 
 ## 13. Prinsip desain

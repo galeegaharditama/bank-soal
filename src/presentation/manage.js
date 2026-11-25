@@ -2,7 +2,7 @@ import { createQuestion, validateQuestion, GRADES } from '../domain/Question.js'
 import { SupabaseQuestionRepository } from '../data/SupabaseQuestionRepository.js';
 import { SupabaseTaxonomyRepository } from '../data/SupabaseTaxonomyRepository.js';
 import { uploadImage } from '../data/imageStorage.js';
-import { rowsToQuestions } from '../data/csv.js';
+import { rowsToQuestions, questionsToCsv } from '../data/csv.js';
 import { buildTemplateCsv, TEMPLATE_FILE_NAME } from '../data/csvTemplate.js';
 import { signIn, signOut, currentUser } from '../data/auth.js';
 import { fillSelect, fillOptions, unique } from './dom.js';
@@ -478,6 +478,10 @@ $('select-all').addEventListener('change', (event) => {
 
 $('bulk-activate').addEventListener('click', () => setManyActive(true));
 $('bulk-deactivate').addEventListener('click', () => setManyActive(false));
+$('export-csv').addEventListener('click', () => exportCsv(visibleQuestions));
+$('bulk-export').addEventListener('click', () =>
+  exportCsv(allQuestions.filter((question) => selectedIds.has(question.id)), 'terpilih')
+);
 $('bulk-clear').addEventListener('click', () => {
   selectedIds = new Set();
   renderRows();
@@ -508,6 +512,40 @@ $('sign-out').addEventListener('click', async () => {
   selectedIds = new Set();
   showLogin();
 });
+
+/* ---------- CSV export ---------- */
+
+const filterSlug = () => {
+  const name = ($('subject-filter').value || 'semua-mapel').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const grade = $('grade-filter').value ? `kelas-${$('grade-filter').value}` : 'semua-kelas';
+  return `${name}-${grade}`;
+};
+
+const today = () => {
+  const now = new Date();
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+};
+
+function exportCsv(questions, suffix = '') {
+  if (!questions.length) {
+    setStatus('Tidak ada soal untuk diekspor.', 'error');
+    return;
+  }
+
+  const nama = `soal-${filterSlug()}${suffix ? `-${suffix}` : ''}-${today()}.csv`;
+  const url = URL.createObjectURL(new Blob([questionsToCsv(questions)], { type: 'text/csv;charset=utf-8' }));
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = nama;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+  setStatus(`${questions.length} soal diekspor ke ${nama}.`, 'success');
+}
 
 /* ---------- CSV import ---------- */
 

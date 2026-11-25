@@ -76,6 +76,41 @@ export function parseCsv(text) {
   return rows;
 }
 
+const EXPORT_HEADER = [
+  'mapel', 'kelas', 'bab', 'tipe', 'soal', 'gambar',
+  'opsi_a', 'opsi_b', 'opsi_c', 'opsi_d', 'jawaban', 'pembahasan', 'aktif',
+];
+
+const quote = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+
+/**
+ * Questions -> CSV that this same importer reads back unchanged.
+ * Semicolon, because Excel in an Indonesian locale expects it (the parser detects both).
+ */
+export function questionsToCsv(questions) {
+  const lines = [EXPORT_HEADER.map(quote).join(';')];
+
+  for (const question of questions) {
+    lines.push([
+      question.subject,
+      question.grade ?? '',
+      question.chapter ?? '',
+      question.type,
+      question.prompt,
+      question.imagePath ?? '',
+      question.optionA ?? '',
+      question.optionB ?? '',
+      question.optionC ?? '',
+      question.optionD ?? '',
+      question.answer,
+      question.explanation ?? '',
+      question.active ? 'ya' : 'tidak',
+    ].map(quote).join(';'));
+  }
+
+  return `\uFEFF${lines.join('\r\n')}\r\n`;
+}
+
 const findColumn = (headers, key) => {
   for (const alias of ALIASES[key]) {
     const index = headers.indexOf(alias);
